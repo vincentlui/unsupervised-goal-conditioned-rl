@@ -11,3 +11,4 @@ data
 build
 dist
 *.avi
+.ipynb_checkpoints/
