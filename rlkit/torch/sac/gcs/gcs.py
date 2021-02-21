@@ -104,14 +104,12 @@ class GCSTrainer(TorchTrainer):
         """
         DF Loss and Intrinsic Reward
         """
-        z_hat = torch.argmax(skills, dim=1)
         df_input = torch.cat([next_obs, end_state], dim=1)
-        d_pred = self.df(df_input)
-        d_pred_log_softmax = F.log_softmax(d_pred, 1)
-        _, pred_z = torch.max(d_pred_log_softmax, dim=1, keepdim=True)
-        rewards = d_pred_log_softmax[torch.arange(d_pred.shape[0]), z_hat] - math.log(1/self.policy.skill_dim)
-        rewards = rewards.reshape(-1, 1)
-        df_loss = self.df_criterion(d_pred, z_hat)
+        d_mean, d_std = self.df(df_input)
+        skill_noise = (skills - d_mean) / (d_std + 1e-8)
+        log_likelihood = torch.sum(-0.5 * skill_noise.pow(2) - d_std.log() - 0.5 * math.log(2 * math.pi), dim=1, keepdim=True)
+        rewards = log_likelihood
+        df_loss = -log_likelihood.mean()
 
         """
         Policy and Alpha Loss
@@ -188,7 +186,7 @@ class GCSTrainer(TorchTrainer):
         """
         Save some statistics for eval
         """
-        df_accuracy = torch.sum(torch.eq(z_hat, pred_z.reshape(1, list(pred_z.size())[0])[0])).float()/list(pred_z.size())[0]
+        # df_accuracy = torch.sum(torch.eq(z_hat, pred_z.reshape(1, list(pred_z.size())[0])[0])).float()/list(pred_z.size())[0]
 
         if self._need_to_update_eval_statistics:
             self._need_to_update_eval_statistics = False
@@ -200,7 +198,7 @@ class GCSTrainer(TorchTrainer):
 
             self.eval_statistics['Intrinsic Rewards'] = np.mean(ptu.get_numpy(rewards))
             self.eval_statistics['DF Loss'] = np.mean(ptu.get_numpy(df_loss))
-            self.eval_statistics['DF Accuracy'] = np.mean(ptu.get_numpy(df_accuracy))
+            # self.eval_statistics['DF Accuracy'] = np.mean(ptu.get_numpy(df_accuracy))
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
@@ -214,10 +212,10 @@ class GCSTrainer(TorchTrainer):
                 'Q2 Predictions',
                 ptu.get_numpy(q2_pred),
             ))
-            self.eval_statistics.update(create_stats_ordered_dict(
-                'D Predictions',
-                ptu.get_numpy(pred_z),
-            ))
+            # self.eval_statistics.update(create_stats_ordered_dict(
+            #     'D Predictions',
+            #     ptu.get_numpy(pred_z),
+            # ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Q Targets',
                 ptu.get_numpy(q_target),

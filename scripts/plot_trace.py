@@ -7,7 +7,7 @@ from rlkit.samplers.util import DIAYNRollout as rollout
 
 
 def simulate_policy(args):
-    data = torch.load(args.file)
+    data = torch.load(args.file, map_location='cpu')
     policy = data['evaluation/policy']
     env = NormalizedBoxEnv(Navigation2d())
     figure = plt.figure()
@@ -15,6 +15,9 @@ def simulate_policy(args):
         path = rollout(env, policy, skill, max_path_length=20)
         obs = path['observations']
         plt.plot(obs[:,0], obs[:,1])
+
+    plt.xlim([0,1])
+    plt.ylim([0,1])
 
     plt.show()
 
