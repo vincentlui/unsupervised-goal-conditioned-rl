@@ -107,7 +107,8 @@ class GCSTrainer(TorchTrainer):
         df_input = torch.cat([next_obs, end_state], dim=1)
         d_mean, d_std = self.df(df_input)
         skill_noise = (skills - d_mean) / (d_std + 1e-8)
-        log_likelihood = torch.sum(-0.5 * skill_noise.pow(2) - d_std.log() - 0.5 * math.log(2 * math.pi), dim=1, keepdim=True)
+        log_likelihood = torch.sum(-0.5 * skill_noise.pow(2) - d_std.log() - 0.5 * math.log(2 * math.pi),
+                                   dim=1, keepdim=True)
         rewards = log_likelihood
         df_loss = -log_likelihood.mean()
 

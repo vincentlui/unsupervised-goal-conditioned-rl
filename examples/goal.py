@@ -27,6 +27,7 @@ def experiment(variant, args):
     # expl_env = NormalizedBoxEnv(HalfCheetahEnv())
     # eval_env = NormalizedBoxEnv(HalfCheetahEnv())
     expl_env = NormalizedBoxEnv(Navigation2d())
+    expl_env.set_random_start_state(True)
     eval_env = NormalizedBoxEnv(Navigation2d())
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
