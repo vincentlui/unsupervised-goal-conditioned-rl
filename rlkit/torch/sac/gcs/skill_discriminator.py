@@ -46,8 +46,9 @@ class SkillDiscriminator(Mlp):
             self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
             self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
         else:
-            self.log_std = np.log(std)
-            assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
+            self.std = torch.Tensor(np.array(std))
+            self.log_std = torch.log(self.std)
+            assert np.all(LOG_SIG_MIN <= self.log_std) and np.all(self.log_std <= LOG_SIG_MAX)
 
     def forward(
             self,
@@ -64,6 +65,5 @@ class SkillDiscriminator(Mlp):
             std = torch.exp(log_std)
         else:
             std = self.std
-            log_std = self.log_std
 
         return mean, std

@@ -59,6 +59,7 @@ def experiment(variant, args):
         input_size=obs_dim + ends_dim,
         skill_dim=skill_dim,
         hidden_sizes=[M, M],
+        std=[0.1, 0.1]
     )
     policy = UniformSkillTanhGaussianPolicy(
         obs_dim=obs_dim + skill_dim,
@@ -123,7 +124,7 @@ if __name__ == "__main__":
         layer_size=32,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
-            num_epochs=1000, #1000
+            num_epochs=5, #1000
             num_eval_steps_per_epoch=20,
             num_trains_per_train_loop=32,
             num_expl_steps_per_train_loop=600,
