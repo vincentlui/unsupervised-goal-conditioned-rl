@@ -9,6 +9,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
             skill_dim,
             end_state_dim,
             env_info_sizes=None,
+            end_state_key=None
     ):
         """
         :param max_replay_buffer_size:
@@ -16,6 +17,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
         """
         self._skill = np.zeros((max_replay_buffer_size, skill_dim))
         self._end_state = np.zeros((max_replay_buffer_size, end_state_dim))
+        self.end_state_key = end_state_key
 
         super().__init__(
             max_replay_buffer_size=max_replay_buffer_size,
@@ -36,7 +38,10 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
         :param path: Dict like one outputted by rlkit.samplers.util.rollout
         """
 
-        end_state = path["next_observations"][-1]
+        if self.end_state_key is None:
+            end_state = path["next_observations"][-1]
+        else:
+            end_state = path["env_infos"][-1][self.end_state_key]
 
         for i, (
                 obs,

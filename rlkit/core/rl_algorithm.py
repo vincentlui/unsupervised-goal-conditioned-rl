@@ -123,10 +123,10 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
                 self.eval_env.get_diagnostics(eval_paths),
                 prefix='evaluation/',
             )
-        logger.record_dict(
-            eval_util.get_generic_path_information(eval_paths),
-            prefix="evaluation/",
-        )
+        # logger.record_dict(
+        #     eval_util.get_generic_path_information(eval_paths),
+        #     prefix="evaluation/",
+        # )
 
         """
         Misc

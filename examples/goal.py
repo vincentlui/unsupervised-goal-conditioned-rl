@@ -1,7 +1,8 @@
 import gym
 import argparse
 #from gym.envs.mujoco import HalfCheetahEnv
-from env.navigation2d.navigation2d import Navigation2d
+from envs.navigation2d.navigation2d import Navigation2d
+from envs.mujoco.ant import AntEnv
 
 import rlkit.torch.pytorch_util as ptu
 # from rlkit.torch.sac.diayn.diayn_env_replay_buffer import DIAYNEnvReplayBuffer
@@ -26,13 +27,16 @@ def experiment(variant, args):
     # eval_env = NormalizedBoxEnv(gym.make(str(args.env)))
     # expl_env = NormalizedBoxEnv(HalfCheetahEnv())
     # eval_env = NormalizedBoxEnv(HalfCheetahEnv())
-    expl_env = NormalizedBoxEnv(Navigation2d())
-    expl_env.set_random_start_state(True)
-    eval_env = NormalizedBoxEnv(Navigation2d())
+    # expl_env = NormalizedBoxEnv(Navigation2d())
+    # expl_env.set_random_start_state(True)
+    # eval_env = NormalizedBoxEnv(Navigation2d())
+    expl_env = NormalizedBoxEnv(AntEnv())
+    eval_env = NormalizedBoxEnv(AntEnv())
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
     skill_dim = args.skill_dim
-    ends_dim = expl_env.observation_space.low.size
+    # ends_dim = expl_env.observation_space.low.size
+    ends_dim = args.ends_dim
 
     M = variant['layer_size']
     qf1 = FlattenMlp(
@@ -82,7 +86,8 @@ def experiment(variant, args):
         variant['replay_buffer_size'],
         expl_env,
         skill_dim,
-        ends_dim
+        ends_dim,
+        end_state_key=args.ends_key
     )
     trainer = GCSTrainer(
         env=eval_env,
@@ -113,23 +118,27 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('env', type=str,
                         help='environment')
-    parser.add_argument('--skill_dim', type=int, default=10,
+    parser.add_argument('--skill_dim', type=int, default=2,
                         help='skill dimension')
+    parser.add_argument('--ends_dim', type=int, default=2,
+                        help='end_state dimension')
+    parser.add_argument('--ends_key', type=str, default='coordinate',
+                        help='end_state key')
     args = parser.parse_args()
 
     # noinspection PyTypeChecker
     variant = dict(
-        algorithm="DIAYN-goal",
+        algorithm="GCS",
         version="normal",
-        layer_size=32,
+        layer_size=128,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
-            num_epochs=5, #1000
-            num_eval_steps_per_epoch=20,
-            num_trains_per_train_loop=32,
-            num_expl_steps_per_train_loop=600,
-            min_num_steps_before_training=600,
-            max_path_length=20,
+            num_epochs=1000, #1000
+            num_eval_steps_per_epoch=0,
+            num_trains_per_train_loop=100,
+            num_expl_steps_per_train_loop=2000,
+            min_num_steps_before_training=0,
+            max_path_length=200,
             batch_size=128, #256
         ),
         trainer_kwargs=dict(
