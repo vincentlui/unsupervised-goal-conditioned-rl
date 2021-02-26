@@ -99,7 +99,7 @@ class GCSTrainer(TorchTrainer):
         if exclude_obs_ind:
             obs_len = get_dim(env.observation_space)
             self.obs_ind = get_indices(obs_len, exclude_obs_ind)
-        self.goal_distribution = Uniform(torch.tensor([-1., -1.]), torch.tensor([1., 1.]))
+        self.goal_distribution = Uniform(torch.tensor([0., 0.]), torch.tensor([1., 1.]))
 
     def train_discriminator(self, batch):
         skills = batch['skills']
@@ -315,8 +315,8 @@ class GCSTrainer(TorchTrainer):
         x = torch.Tensor(np.repeat(ptu.get_numpy(skills), num_sample_goal, axis=0))
         log_prob_sample_goal = self.df(c).log_prob(x).view(-1,num_sample_goal)
         # denom = torch.sum(torch.exp(log_prob), dim=1)
-        diff = torch.clamp(log_prob_sample_goal - logp,-50, 50)
-        rewards = -torch.log(1 + torch.exp(diff).sum(dim=1)).view(num_rows, -1)
+        diff = torch.clamp(log_prob_sample_goal - logp,-20, 10)
+        rewards = -torch.log(1 + torch.exp(diff).sum(dim=1)).view(num_rows, -1) + np.log(num_sample_goal)
         return rewards
 
 
