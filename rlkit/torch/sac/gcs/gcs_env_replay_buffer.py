@@ -7,17 +7,18 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
             max_replay_buffer_size,
             env,
             skill_dim,
-            end_state_dim,
+            goal_dim,
             env_info_sizes=None,
-            end_state_key=None
     ):
         """
         :param max_replay_buffer_size:
         :param env:
         """
+        self.skill_dim = skill_dim
+        self.goal_dim = goal_dim
         self._skill = np.zeros((max_replay_buffer_size, skill_dim))
-        self._end_state = np.zeros((max_replay_buffer_size, end_state_dim))
-        self.end_state_key = end_state_key
+        self._cur_state = np.zeros((max_replay_buffer_size, goal_dim))
+        self._skill_goal = np.zeros((max_replay_buffer_size, goal_dim))
 
         super().__init__(
             max_replay_buffer_size=max_replay_buffer_size,
@@ -37,12 +38,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
 
         :param path: Dict like one outputted by rlkit.samplers.util.rollout
         """
-
-        if self.end_state_key is None:
-            end_state = path["next_observations"][-1]
-        else:
-            end_state = path["env_infos"][-1][self.end_state_key]
-
+        # skill_goals = path["next_observations"][-1]
         for i, (
                 obs,
                 action,
@@ -50,7 +46,9 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
                 next_obs,
                 terminal,
                 agent_info,
-                env_info
+                env_info,
+                skill_goals,
+                current_states,
         ) in enumerate(zip(
             path["observations"],
             path["actions"],
@@ -59,8 +57,11 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
             path["terminals"],
             path["agent_infos"],
             path["env_infos"],
+            path["skill_goals"],
+            path["current_states"],
         )):
-            agent_info['end_state'] = end_state
+            agent_info['cur_state'] = current_states #obs
+            agent_info['skill_goal'] = skill_goals
             self.add_sample(
                 observation=obs,
                 action=action,
@@ -75,7 +76,8 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
     def add_sample(self, observation, action, reward, terminal,
                    next_observation, agent_info, **kwargs):
         self._skill[self._top] = agent_info["skill"]
-        self._end_state[self._top] = agent_info["end_state"]
+        self._cur_state[self._top] = agent_info['cur_state']
+        self._skill_goal[self._top] = agent_info["skill_goal"]
 
         return super().add_sample(
             observation=observation,
@@ -95,7 +97,8 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
             terminals=self._terminals[indices],
             next_observations=self._next_obs[indices],
             skills=self._skill[indices],
-            end_state =  self._end_state[indices]
+            cur_states=self._cur_state[indices],
+            skill_goals=self._skill_goal[indices]
         )
         for key in self._env_info_keys:
             assert key not in batch.keys()

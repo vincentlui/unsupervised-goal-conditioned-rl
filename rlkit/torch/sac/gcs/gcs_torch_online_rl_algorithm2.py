@@ -8,10 +8,10 @@ from rlkit.samplers.data_collector import (
     StepCollector,
 )
 from rlkit.torch.core import np_to_pytorch_batch
-from rlkit.torch.sac.gcs.gcs_env_replay_buffer import GCSEnvReplayBuffer
+from rlkit.torch.sac.gcs import gcs_env_replay_buffer
 
 
-class GCSTorchOnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
+class GCSTorchOnlineRLAlgorithm2(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
             trainer,
@@ -29,7 +29,6 @@ class GCSTorchOnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_trains_discriminator_per_train_loop,
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
-            **other
     ):
         super().__init__(
             trainer,
@@ -93,15 +92,9 @@ class GCSTorchOnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
 
                 new_expl_paths = self.expl_data_collector.get_epoch_paths()
                 self.replay_buffer.add_paths(new_expl_paths)
-                on_replay_buffer = self.create_online_replay_buffer(buffer_size=self.num_expl_steps_per_train_loop)
-                on_replay_buffer.add_paths(new_expl_paths)
                 gt.stamp('data storing', unique=False)
 
                 self.training_mode(True)
-                for _ in range(self.num_trains_discriminator_per_train_loop):
-                    train_data = self.replay_buffer.random_batch(self.batch_size)
-                    train_data = np_to_pytorch_batch(train_data)
-                    self.trainer.train_discriminator(train_data)
                 for _ in range(self.num_trains_per_train_loop):
                     train_data = self.replay_buffer.random_batch(
                         self.batch_size)
@@ -118,12 +111,3 @@ class GCSTorchOnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def training_mode(self, mode):
         for net in self.trainer.networks:
             net.train(mode)
-
-    def create_online_replay_buffer(self, buffer_size):
-        b = GCSEnvReplayBuffer(
-            buffer_size,
-            self.expl_env,
-            self.replay_buffer.skill_dim,
-            self.replay_buffer.goal_dim,
-        )
-        return b

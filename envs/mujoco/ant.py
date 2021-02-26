@@ -23,7 +23,6 @@ import numpy as np
 from gym.envs.mujoco import mujoco_env
 import math
 
-
 def q_inv(a):
     return [a[0], -a[1], -a[2], -a[3]]
 
@@ -34,7 +33,6 @@ def q_mult(a, b):  # multiply two quaternion
     j = a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1]
     k = a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0]
     return [w, i, j, k]
-
 
 # pylint: disable=missing-docstring
 class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
@@ -121,13 +119,12 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         notdone = np.isfinite(state).all()
         done = not notdone
         ob = self._get_obs()
-        coordinate = self._get_coordinate()
         return ob, reward, done, dict(
             reward_forward=forward_reward,
             reward_sideward=sideward_reward,
             reward_ctrl=-ctrl_cost,
             reward_survive=survive_reward,
-            coordinate=coordinate)
+        )
 
     def _get_obs(self):
         # No crfc observation
@@ -166,9 +163,14 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self.sim.data.qpos.flat[:2]
 
     def reset_model(self):
-        qpos = self.init_qpos + self.np_random.uniform(
-            size=self.sim.model.nq, low=-.1, high=.1)
-        qvel = self.init_qvel + self.np_random.randn(self.sim.model.nv) * .1
+        # qpos = self.init_qpos + self.np_random.uniform(
+        #     size=self.sim.model.nq, low=-.1, high=.1)
+        # qvel = self.init_qvel + self.np_random.randn(self.sim.model.nv) * .1
+        #
+        # qpos[15:] = self.init_qpos[15:]
+        # qvel[14:] = 0.
+        qpos = self.init_qpos
+        qvel = self.init_qvel
 
         qpos[15:] = self.init_qpos[15:]
         qvel[14:] = 0.
@@ -177,7 +179,7 @@ class AntEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self._get_obs()
 
     def viewer_setup(self):
-        self.viewer.cam.distance = self.model.stat.extent * 2.5
+        self.viewer.cam.distance = self.model.stat.extent * 1
 
     def get_ori(self):
         ori = [0, 1, 0, 0]

@@ -103,12 +103,11 @@ class DIAYNContTrainer(TorchTrainer):
         """
         DF Loss and Intrinsic Reward
         """
-        # df_input = torch.cat([next_obs, end_state], dim=1)
-        d_mean, d_std = self.df(next_obs)
-        skill_noise = (skills - d_mean) / (d_std + 1e-8)
-        log_likelihood = torch.sum(-0.5 * skill_noise.pow(2) - d_std.log() - 0.5 * math.log(2 * math.pi),
-                                   dim=1, keepdim=True)
-        rewards = log_likelihood
+
+        df_input = torch.cat([obs], dim=1)
+        df_distribution = self.df(df_input)
+        log_likelihood = df_distribution.log_prob(skills)
+        rewards = log_likelihood.reshape(-1, 1)
         df_loss = -log_likelihood.mean()
         # z_hat = torch.argmax(skills, dim=1)
         # d_pred = self.df(next_obs)
@@ -122,7 +121,7 @@ class DIAYNContTrainer(TorchTrainer):
         Policy and Alpha Loss
         """
         new_obs_actions, policy_mean, policy_log_std, log_pi, *_ = self.policy(
-            obs, skill_vec=skills, reparameterize=True, return_log_prob=True,
+            skills, reparameterize=True, return_log_prob=True,
         )
         obs_skills = torch.cat((obs, skills), dim=1)
         if self.use_automatic_entropy_tuning:
@@ -133,7 +132,7 @@ class DIAYNContTrainer(TorchTrainer):
             alpha = self.log_alpha.exp()
         else:
             alpha_loss = 0
-            alpha = 1
+            alpha = .1
 
         q_new_actions = torch.min(
             self.qf1(obs_skills, new_obs_actions),
@@ -148,7 +147,7 @@ class DIAYNContTrainer(TorchTrainer):
         q2_pred = self.qf2(obs_skills, actions)
         # Make sure policy accounts for squashing functions like tanh correctly!
         new_next_actions, _, _, new_log_pi, *_ = self.policy(
-            next_obs, skill_vec = skills, reparameterize=True, return_log_prob=True,
+            skills, reparameterize=True, return_log_prob=True,
         )
         next_obs_skills = torch.cat((next_obs, skills), dim=1)
         target_q_values = torch.min(

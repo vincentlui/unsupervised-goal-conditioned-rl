@@ -11,7 +11,7 @@ from rlkit.torch.core import np_to_pytorch_batch
 from rlkit.torch.sac.gcs.gcs_env_replay_buffer import GCSEnvReplayBuffer
 
 
-class GCSTorchOnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
+class DADSTorchOnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
             trainer,
@@ -26,10 +26,9 @@ class GCSTorchOnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_eval_steps_per_epoch,
             num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
-            num_trains_discriminator_per_train_loop,
+            num_trains_skill_dynamics_per_train_loop,
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
-            **other
     ):
         super().__init__(
             trainer,
@@ -45,9 +44,9 @@ class GCSTorchOnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.num_eval_steps_per_epoch = num_eval_steps_per_epoch
         self.num_trains_per_train_loop = num_trains_per_train_loop
         self.num_train_loops_per_epoch = num_train_loops_per_epoch
-        self.num_trains_discriminator_per_train_loop = num_trains_discriminator_per_train_loop
         self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
         self.min_num_steps_before_training = min_num_steps_before_training
+        self.num_trains_skill_dynamics_per_train_loop = num_trains_skill_dynamics_per_train_loop
 
         # assert self.num_trains_per_train_loop >= self.num_expl_steps_per_train_loop, \
         #     'Online training presumes num_trains_per_train_loop >= num_expl_steps_per_train_loop'
@@ -98,12 +97,12 @@ class GCSTorchOnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 gt.stamp('data storing', unique=False)
 
                 self.training_mode(True)
-                for _ in range(self.num_trains_discriminator_per_train_loop):
-                    train_data = self.replay_buffer.random_batch(self.batch_size)
+                for _ in range(self.num_trains_skill_dynamics_per_train_loop):
+                    train_data = on_replay_buffer.random_batch(self.batch_size)
                     train_data = np_to_pytorch_batch(train_data)
-                    self.trainer.train_discriminator(train_data)
+                    self.trainer.train_skill_dynamics(train_data)
                 for _ in range(self.num_trains_per_train_loop):
-                    train_data = self.replay_buffer.random_batch(
+                    train_data = on_replay_buffer.random_batch(
                         self.batch_size)
                     self.trainer.train(train_data)
                 gt.stamp('training', unique=False)

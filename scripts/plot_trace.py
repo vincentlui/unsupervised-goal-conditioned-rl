@@ -12,17 +12,17 @@ from rlkit.samplers.util import DIAYNRollout as rollout
 def simulate_policy(args):
     data = torch.load(args.file, map_location='cpu')
     policy = data['evaluation/policy']
-    # envs = NormalizedBoxEnv(Navigation2d())
-    env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
+    env = NormalizedBoxEnv(Navigation2d())
+    # env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
     figure = plt.figure()
-    for _ in range(3):
+    for _ in range(10):
         skill = policy.stochastic_policy.skill_space.sample()
-        path = rollout(env, policy, skill, max_path_length=args.H, render=True)
+        path = rollout(env, policy, skill, max_path_length=args.H, render=False)
         obs = path['observations']
         plt.plot(obs[:,0], obs[:,1], label=tuple(skill.numpy()))
 
-    plt.xlim([0,2])
-    plt.ylim([0,2])
+    plt.xlim([0,1])
+    plt.ylim([0,1])
     plt.legend()
     plt.show()
 
@@ -30,19 +30,102 @@ def simulate_policy2(args):
     data = torch.load(args.file, map_location='cpu')
     policy = data['evaluation/policy']
     # envs = NormalizedBoxEnv(Navigation2d())
-    env = NormalizedBoxEnv(AntEnv())
+    env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
     figure = plt.figure()
-    for _ in range(3):
+    skills = torch.Tensor(np.vstack([np.arange(-1, 1.1, 0.2), 0.5 * np.ones(11)])).transpose(1, 0)
+    for _ in range(10):
         skill = policy.stochastic_policy.skill_space.sample()
-        path = rollout(env, policy, skill, max_path_length=2, render=True)
-        obs = np.array([p['coordinate'] for p in path['env_infos']])
-        plt.plot(obs[:,0], obs[:,1], label=tuple(skill.numpy()))
-        print(obs)
+        # print(skill)
+        path = DIAYNRollout(env, policy, skill, max_path_length=args.H, render=True)
+        obs = path['observations']
+        plt.plot(obs[:,0], obs[:,1])#, label=tuple(skill.numpy()))
+        action = path['actions']
+        # print(action)
 
     plt.xlim([-2,2])
     plt.ylim([-2,2])
-    plt.legend()
+    # plt.legend()
     plt.show()
+
+def DIAYNRollout(env, agent, skill, max_path_length=np.inf, render=False):
+    """
+    The following value for the following keys will be a 2D array, with the
+    first dimension corresponding to the time dimension.
+     - observations
+     - actions
+     - rewards
+     - next_observations
+     - terminals
+
+    The next two elements will be lists of dictionaries, with the index into
+    the list being the index into the time
+     - agent_infos
+     - env_infos
+
+    :param env:
+    :param agent:
+    :param max_path_length:
+    :param render:
+    :return:
+    """
+    observations = []
+    actions = []
+    rewards = []
+    terminals = []
+    agent_infos = []
+    env_infos = []
+    images = []
+
+    o = env.reset()
+    next_o = None
+    path_length = 0
+    if render:
+        img = env.render('rgb_array')
+#        env.viewer.cam.fixedcamid = 0
+#        env.viewer.cam.type = 2
+        images.append(img)
+
+    while path_length < max_path_length:
+        agent.stochastic_policy.skill = skill
+        a, agent_info = agent.get_action(o[2:])
+        next_o, r, d, env_info = env.step(a)
+        observations.append(o)
+        rewards.append(r)
+        terminals.append(d)
+        actions.append(a)
+        agent_infos.append(agent_info)
+        env_infos.append(env_info)
+        path_length += 1
+        if max_path_length == np.inf and d:
+            break
+        o = next_o
+        if render:
+            img = env.render('rgb_array')
+            images.append(img)
+
+    actions = np.array(actions)
+    if len(actions.shape) == 1:
+        actions = np.expand_dims(actions, 1)
+    observations = np.array(observations)
+    if len(observations.shape) == 1:
+        observations = np.expand_dims(observations, 1)
+        next_o = np.array([next_o])
+    next_observations = np.vstack(
+        (
+            observations[1:, :],
+            np.expand_dims(next_o, 0)
+        )
+    )
+    return dict(
+        observations=observations,
+        actions=actions,
+        rewards=np.array(rewards).reshape(-1, 1),
+        next_observations=next_observations,
+        terminals=np.array(terminals).reshape(-1, 1),
+        agent_infos=agent_infos,
+        env_infos=env_infos,
+        images=images
+    )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
