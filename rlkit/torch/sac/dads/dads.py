@@ -309,7 +309,7 @@ class DADSTrainer(TorchTrainer):
         x = torch.Tensor(np.repeat(ptu.get_numpy(state_diff), num_sample_goal, axis=0))
         log_prob_sample_goal = self.skill_dynamics(c).log_prob(x).view(-1,num_sample_goal)
         # denom = torch.sum(torch.exp(log_prob), dim=1)
-        diff = torch.clamp(log_prob_sample_goal - logp,-20, 2)
+        diff = torch.clamp(log_prob_sample_goal - logp,-20, 10)
         rewards = -torch.log(1 + torch.exp(diff).sum(dim=1)).view(num_rows, -1) + np.log(20)
         return rewards
 

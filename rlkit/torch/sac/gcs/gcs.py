@@ -139,9 +139,9 @@ class GCSTrainer(TorchTrainer):
         # df_input = cur_states - skill_goals
         df_distribution = self.df(df_input)
         log_likelihood = df_distribution.log_prob(skills)
-        # rewards = log_likelihood.view(-1, 1)
-        rewards = self._calc_reward(cur_states, skill_goals, skills).detach()
-        # df_loss = -log_likelihood.mean()
+        rewards = log_likelihood.view(-1, 1)
+        # rewards = self._calc_reward(cur_states, skill_goals, skills).detach()
+        df_loss = -log_likelihood.mean()
 
         """
         Policy and Alpha Loss
@@ -188,9 +188,9 @@ class GCSTrainer(TorchTrainer):
         """
         Update networks
         """
-        # self.df_optimizer.zero_grad()
-        # df_loss.backward()
-        # self.df_optimizer.step()
+        self.df_optimizer.zero_grad()
+        df_loss.backward()
+        self.df_optimizer.step()
 
         self.qf1_optimizer.zero_grad()
         qf1_loss.backward()
@@ -229,7 +229,7 @@ class GCSTrainer(TorchTrainer):
             policy_loss = (log_pi - q_new_actions).mean()
 
             self.eval_statistics['Intrinsic Rewards'] = np.mean(ptu.get_numpy(rewards))
-            # self.eval_statistics['DF Loss'] = np.mean(ptu.get_numpy(df_loss))
+            self.eval_statistics['DF Loss'] = np.mean(ptu.get_numpy(df_loss))
             # self.eval_statistics['DF Accuracy'] = np.mean(ptu.get_numpy(df_accuracy))
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))

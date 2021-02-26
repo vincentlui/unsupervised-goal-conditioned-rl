@@ -75,9 +75,9 @@ def experiment(variant, args):
     expl_step_collector = GCSMdpPathCollector(
         expl_env,
         policy,
-        # exclude_obs_ind=[0,1],
-        # goal_ind=[0,1],
-        skill_horizon=20,
+        exclude_obs_ind=[0,1],
+        goal_ind=[0,1],
+        skill_horizon=40,
         # render=True
     )
     replay_buffer = GCSEnvReplayBuffer(
@@ -94,7 +94,7 @@ def experiment(variant, args):
         df=df,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
-        # exclude_obs_ind=[0, 1],
+        exclude_obs_ind=[0, 1],
         **variant['trainer_kwargs']
     )
     algorithm = GCSTorchOnlineRLAlgorithm(
@@ -138,16 +138,16 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS",
         version="normal",
-        layer_size=32,
-        replay_buffer_size=int(1E6),
+        layer_size=128,
+        replay_buffer_size=int(1E5),
         algorithm_kwargs=dict(
-            num_epochs=5000, #1000
+            num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
             num_trains_per_train_loop=100,
             num_expl_steps_per_train_loop=2000,
             num_trains_discriminator_per_train_loop=32,
             min_num_steps_before_training=0,
-            max_path_length=20,
+            max_path_length=200,
             batch_size=128, #256
         )
         ,
@@ -159,7 +159,7 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             df_lr=3E-4,
             reward_scale=1,
-            use_automatic_entropy_tuning=True,
+            use_automatic_entropy_tuning=False,
         ),
     )
     setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
