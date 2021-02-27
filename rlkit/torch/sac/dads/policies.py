@@ -148,9 +148,9 @@ class UniformSkillTanhGaussianPolicy(SkillTanhGaussianPolicy):
         # online reinforcement learning
         obs_np = np.concatenate((obs_np, self.skill), axis=0)
         action, _, _, log_prob, *_ = self.get_actions(obs_np[None], deterministic=deterministic, return_log_prob=return_log_prob)
-        # if return_log_prob:
-        return action[0,:], {"skill": self.skill, "log_prob": log_prob[0]}
-        # return action[0,:], {"skill": self.skill}
+        if return_log_prob:
+            return action[0,:], {"skill": self.skill, "log_prob": log_prob[0]}#, "pre_tanh_value": pre_tanh_value[0,:]}
+        return action[0,:], {"skill": self.skill}
 
     def get_actions(self, obs_np, deterministic=False, return_log_prob=False):
         return eval_np(self, obs_np, deterministic=deterministic, return_log_prob=return_log_prob)

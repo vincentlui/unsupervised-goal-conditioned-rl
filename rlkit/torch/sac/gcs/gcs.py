@@ -99,7 +99,7 @@ class GCSTrainer(TorchTrainer):
         if exclude_obs_ind:
             obs_len = get_dim(env.observation_space)
             self.obs_ind = get_indices(obs_len, exclude_obs_ind)
-        self.goal_distribution = Uniform(torch.tensor([0., 0.]), torch.tensor([1., 1.]))
+        # self.goal_distribution = Uniform(torch.tensor([0., 0.]), torch.tensor([1., 1.]))
 
     def train_discriminator(self, batch):
         skills = batch['skills']

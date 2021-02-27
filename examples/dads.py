@@ -58,7 +58,7 @@ def experiment(variant, args):
         input_size=ends_dim + skill_dim,
         output_size=ends_dim,
         hidden_sizes=[M, M],
-        # std=[0.1, 0.1]
+        std=[0.1, 0.1]
     )
     policy = UniformSkillTanhGaussianPolicy(
         obs_dim=obs_dim + skill_dim ,
@@ -141,16 +141,16 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="DADS",
         version="normal",
-        layer_size=128,
-        replay_buffer_size=int(5E4),
+        layer_size=32,
+        replay_buffer_size=int(1E4),
         algorithm_kwargs=dict(
-            num_epochs=3000, #1000
+            num_epochs=1000, #1000
             num_eval_steps_per_epoch=0,
             num_trains_per_train_loop=100,
             num_expl_steps_per_train_loop=2000,
             num_trains_skill_dynamics_per_train_loop=32,
-            min_num_steps_before_training=2000,
-            max_path_length=200,
+            min_num_steps_before_training=0,
+            max_path_length=40,
             batch_size=128, #256
         )
         ,
@@ -162,10 +162,10 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             sf_lr=3E-4,
             reward_scale=1,
-            use_automatic_entropy_tuning=False,
+            use_automatic_entropy_tuning=True,
         ),
     )
     setup_logger('DADS_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
-            snapshot_gap=50,)
+            snapshot_gap=100,)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant, args)

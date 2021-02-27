@@ -109,10 +109,12 @@ class DADSTrainer(TorchTrainer):
         log_probs_old = batch['log_probs']
 
         sf_input = torch.cat([cur_states, skills], dim=1)
-        sf_distribution = self.skill_dynamics(sf_input)
-        log_likelihood = sf_distribution.log_prob(skill_goals-cur_states)
-        importance_weight = self._calc_importance_weight(self.policy.log_prob(cur_states,skills,actions), log_probs_old)
-        sf_loss = -torch.mean(log_likelihood * importance_weight)
+        # sf_distribution = self.skill_dynamics(sf_input)
+        # log_likelihood = sf_distribution.log_prob(skill_goals-cur_states)
+        log_likelihood = self.skill_dynamics.log_prob(sf_input, skill_goals)# - cur_states)
+        # importance_weight = self._calc_importance_weight(self.policy.log_prob(cur_states,skills,actions), log_probs_old)
+        # sf_loss = -torch.mean(log_likelihood * importance_weight)
+        sf_loss = -torch.mean(log_likelihood)
 
         self.sf_optimizer.zero_grad()
         sf_loss.backward()
@@ -139,7 +141,7 @@ class DADSTrainer(TorchTrainer):
         """
         sf_input = torch.cat([cur_states, skills], dim=1)
         sf_distribution = self.skill_dynamics(sf_input)
-        log_likelihood = sf_distribution.log_prob(skill_goals - cur_states)
+        # log_likelihood = sf_distribution.log_prob(skill_goals)
         rewards = self._calc_reward(cur_states, skill_goals, skills)
         # df_loss = -log_likelihood.mean()
 
@@ -296,12 +298,12 @@ class DADSTrainer(TorchTrainer):
             skill_dynamics=self.skill_dynamics
         )
 
-    def _calc_reward(self, cur_states, state_diff, skills):
-        num_sample_goal = 20
+    def _calc_reward(self, cur_states, skill_goals, skills):
+        num_sample_goal = 50
         sf_input = torch.cat([cur_states, skills], dim=1)
-        # df_input = cur_states - skill_goals
-        df_distribution = self.skill_dynamics(sf_input)
-        logp = df_distribution.log_prob(state_diff).view(-1, 1)
+        logp = self.skill_dynamics.log_prob(sf_input, skill_goals).view(-1, 1)
+        # df_distribution = self.skill_dynamics(sf_input)
+        # logp = df_distribution.log_prob(skill_goal).view(-1, 1)
         #Other goal
         cur_states = ptu.get_numpy(cur_states)
         num_rows =len(cur_states)
@@ -310,11 +312,11 @@ class DADSTrainer(TorchTrainer):
         b = np.tile(goals_sampled, (num_rows,1))
         c = torch.Tensor(np.concatenate([a,b], axis=1))
         # c = torch.Tensor(b-a)
-        x = torch.Tensor(np.repeat(ptu.get_numpy(state_diff), num_sample_goal, axis=0))
-        log_prob_sample_goal = self.skill_dynamics(c).log_prob(x).view(-1,num_sample_goal)
+        x = torch.Tensor(np.repeat(ptu.get_numpy(skill_goals), num_sample_goal, axis=0))
+        log_prob_sample_goal = self.skill_dynamics.log_prob(c, x).view(-1,num_sample_goal)
         # denom = torch.sum(torch.exp(log_prob), dim=1)
-        diff = torch.clamp(log_prob_sample_goal - logp,-20, 10)
-        rewards = -torch.log(1 + torch.exp(diff).sum(dim=1)).view(num_rows, -1) + np.log(20)
+        diff = torch.clamp(log_prob_sample_goal - logp,-20, 20)
+        rewards = -torch.log(1 + torch.exp(diff).sum(dim=1)).view(num_rows, -1) + np.log(num_sample_goal+1)
         return rewards
 
     def _calc_importance_weight(self, log_prob_new, log_prob_old):

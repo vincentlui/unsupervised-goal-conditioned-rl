@@ -37,6 +37,7 @@ class SkillDynamics(Mlp):
         self.std = std
         # self.last_activation = last_activation
         self.batchnorm_input = BatchNorm1d(input_size)
+        self.batchnorm_hidden = [BatchNorm1d(h) for h in hidden_sizes]
         self.batchnorm_output = BatchNorm1d(output_size)
 
         if std is None:
@@ -56,8 +57,8 @@ class SkillDynamics(Mlp):
     ):
         h = self.batchnorm_input(input)
         for i, fc in enumerate(self.fcs):
-            h = self.hidden_activation(fc(h))
-        mean = self.batchnorm_output(self.last_fc(h))
+            h = self.batchnorm_hidden[i](self.hidden_activation(fc(h)))
+        mean = self.last_fc(h)
         if self.std is None:
             log_std = self.last_fc_log_std(h)
             log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
@@ -68,3 +69,9 @@ class SkillDynamics(Mlp):
         distribution = Independent(Normal(mean, std), 1)
 
         return distribution
+
+    def log_prob(self, input, target):
+        sf_distribution = self(input)
+        target = self.batchnorm_output(target)
+        log_likelihood = sf_distribution.log_prob(target)
+        return log_likelihood

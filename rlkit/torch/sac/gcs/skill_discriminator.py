@@ -22,7 +22,7 @@ class SkillDiscriminator(Mlp):
             skill_dim,
             std=None,
             init_w=1e-3,
-            last_activation=None,
+            last_activation=torch.tanh,
             **kwargs
     ):
         super().__init__(
@@ -37,7 +37,8 @@ class SkillDiscriminator(Mlp):
         self.std = std
         self.last_activation = last_activation
         self.batchnorm_input = torch.nn.BatchNorm1d(input_size)
-        self.batchnorm_output = torch.nn.BatchNorm1d(skill_dim)
+        self.batchnorm_hidden = [torch.nn.BatchNorm1d(h) for h in hidden_sizes]
+        # self.batchnorm_output = torch.nn.BatchNorm1d(skill_dim)
 
         if std is None:
             last_hidden_size = input_size
@@ -56,8 +57,8 @@ class SkillDiscriminator(Mlp):
     ):
         h = self.batchnorm_input(input)
         for i, fc in enumerate(self.fcs):
-            h = self.hidden_activation(fc(h))
-        mean = self.batchnorm_output(self.last_fc(h))
+            h = self.batchnorm_hidden[i](self.hidden_activation(fc(h)))
+        mean = self.last_fc(h)
         if self.last_activation:
             mean = self.last_activation(mean)
         if self.std is None:
