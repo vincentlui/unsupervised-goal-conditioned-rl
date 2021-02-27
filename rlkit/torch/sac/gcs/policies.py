@@ -33,22 +33,26 @@ class SkillTanhGaussianPolicy(TanhGaussianPolicy):
             **kwargs
         )
         self.skill_dim = skill_dim
-        self.skill = 0
+        self.skill_reset()
 
-    def get_action(self, obs_np, deterministic=False):
-        # generate (iters, skill_dim) matrix that stacks one-hot skill vectors
+    def get_action(self, obs_np, deterministic=False, return_log_prob=False):
+        # generate (skill_dim, ) matrix that stacks one-hot skill vectors
         # online reinforcement learning
-        skill_vec = np.zeros(self.skill_dim)
-        skill_vec[self.skill] += 1
-        obs_np = np.concatenate((obs_np, skill_vec), axis=0)
-        actions = self.get_actions(obs_np[None], deterministic=deterministic)
-        return actions[0, :], {"skill": skill_vec}
+        obs_np = np.concatenate((obs_np, self.skill_vec), axis=0)
+        action, _, _, log_prob, *_ = self.get_actions(obs_np[None], deterministic=deterministic,
+                                                      return_log_prob=return_log_prob)
+        if return_log_prob:
+            return action[0, :], {"skill": self.skill_vec,
+                                  "log_prob": log_prob[0]}  # , "pre_tanh_value": pre_tanh_value[0,:]}
+        return action[0, :], {"skill": self.skill_vec}
 
-    def get_actions(self, obs_np, deterministic=False):
-        return eval_np(self, obs_np, deterministic=deterministic)[0]
+    def get_actions(self, obs_np, deterministic=False, return_log_prob=False):
+        return eval_np(self, obs_np, deterministic=deterministic, return_log_prob=return_log_prob)
 
     def skill_reset(self):
         self.skill = random.randint(0, self.skill_dim-1)
+        self.skill_vec = np.zeros(self.skill_dim)
+        self.skill_vec[self.skill] += 1
 
     def forward(
             self,

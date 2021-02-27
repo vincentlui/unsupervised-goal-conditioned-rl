@@ -12,9 +12,9 @@ from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.diayn.diayn_path_collector import DIAYNMdpPathCollector
 from rlkit.samplers.data_collector.step_collector import MdpStepCollector
-from rlkit.torch.sac.diayn.policies import SkillTanhGaussianPolicy, MakeDeterministic
+# from rlkit.torch.sac.diayn.policies import SkillTanhGaussianPolicy, MakeDeterministic
 # from rlkit.torch.sac.diayn.diayn import DIAYNTrainer
-from rlkit.torch.sac.gcs.gcs import GCSTrainer
+from rlkit.torch.sac.gcs.gcs import GCSTrainer, GCSTrainer3
 from rlkit.torch.sac.gcs.gcs2 import GCSTrainer2
 from rlkit.torch.networks import FlattenMlp
 from rlkit.torch.sac.diayn.diayn_torch_online_rl_algorithm import DIAYNTorchOnlineRLAlgorithm
@@ -22,7 +22,7 @@ from rlkit.torch.sac.gcs.skill_discriminator import SkillDiscriminator
 from rlkit.torch.sac.gcs.gcs_torch_online_rl_algorithm import GCSTorchOnlineRLAlgorithm
 from rlkit.torch.sac.gcs.gcs_torch_online_rl_algorithm2 import GCSTorchOnlineRLAlgorithm2
 from rlkit.torch.sac.gcs.gcs_path_collector import GCSMdpPathCollector
-from rlkit.torch.sac.gcs.policies import UniformSkillTanhGaussianPolicy
+from rlkit.torch.sac.gcs.policies import UniformSkillTanhGaussianPolicy, SkillTanhGaussianPolicy, MakeDeterministic
 
 
 def experiment(variant, args):
@@ -54,19 +54,16 @@ def experiment(variant, args):
         output_size=1,
         hidden_sizes=[M, M],
     )
-    df = SkillDiscriminator(
+    df = FlattenMlp(
         input_size=ends_dim + ends_dim,
-        skill_dim=skill_dim,
+        output_size=skill_dim,
         hidden_sizes=[M, M],
-        # std=[0.1, 0.1]
     )
-    policy = UniformSkillTanhGaussianPolicy(
+    policy = SkillTanhGaussianPolicy(
         obs_dim=obs_dim + skill_dim ,
         action_dim=action_dim,
         hidden_sizes=[M, M],
         skill_dim=skill_dim,
-        low=[-1] * skill_dim,
-        high=[1] * skill_dim,
     )
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = DIAYNMdpPathCollector(
@@ -78,7 +75,7 @@ def experiment(variant, args):
         policy,
         # exclude_obs_ind=[0],
         # goal_ind=[0],
-        skill_horizon=1,
+        skill_horizon=20,
         # render=True
     )
     replay_buffer = GCSEnvReplayBuffer(
@@ -87,7 +84,7 @@ def experiment(variant, args):
         skill_dim,
         ends_dim,
     )
-    trainer = GCSTrainer(
+    trainer = GCSTrainer3(
         env=eval_env,
         policy=policy,
         qf1=qf1,
@@ -139,18 +136,18 @@ if __name__ == "__main__":
 
     # noinspection PyTypeChecker
     variant = dict(
-        algorithm="GCS",
+        algorithm="GCS-discrete",
         version="normal",
-        layer_size=128,
+        layer_size=32,
         replay_buffer_size=int(5E5),
         algorithm_kwargs=dict(
-            num_epochs=3000, #1000
+            num_epochs=1000, #1000
             num_eval_steps_per_epoch=0,
             num_trains_per_train_loop=100,
             num_expl_steps_per_train_loop=2000,
             num_trains_discriminator_per_train_loop=32,
             min_num_steps_before_training=0,
-            max_path_length=200,
+            max_path_length=20,
             batch_size=128, #256
         )
         ,
@@ -165,7 +162,7 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=True,
         ),
     )
-    setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
+    setup_logger('GOAL_D_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
             snapshot_gap=100,)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant, args)
