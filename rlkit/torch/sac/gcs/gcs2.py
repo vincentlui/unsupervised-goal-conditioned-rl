@@ -23,6 +23,7 @@ class GCSTrainer2(TorchTrainer):
             qf2,
             target_qf1,
             target_qf2,
+            skill_dynamics,
             df,
 
             discount=0.99,
@@ -31,6 +32,7 @@ class GCSTrainer2(TorchTrainer):
             policy_lr=1e-3,
             qf_lr=1e-3,
             df_lr=1e-3,
+            sf_lr=1e-3,
             optimizer_class=optim.Adam,
 
             soft_target_tau=1e-2,
@@ -51,6 +53,7 @@ class GCSTrainer2(TorchTrainer):
         self.target_qf1 = target_qf1
         self.target_qf2 = target_qf2
         self.df = df
+        self.skill_dynamics = skill_dynamics
         self.soft_target_tau = soft_target_tau
         self.target_update_period = target_update_period
 
@@ -90,6 +93,11 @@ class GCSTrainer2(TorchTrainer):
             lr=df_lr,
         )
 
+        self.sf_optimizer = optimizer_class(
+            self.skill_dynamics.parameters(),
+            lr=sf_lr,
+        )
+
         self.discount = discount
         self.reward_scale = reward_scale
         self.eval_statistics = OrderedDict()
@@ -99,7 +107,35 @@ class GCSTrainer2(TorchTrainer):
         if exclude_obs_ind:
             obs_len = get_dim(env.observation_space)
             self.obs_ind = get_indices(obs_len, exclude_obs_ind)
-        self.goal_distribution = Uniform(torch.tensor([-1., -1.]), torch.tensor([1., 1.]))
+        # self.goal_distribution = Uniform(torch.tensor([-1., -1.]), torch.tensor([1., 1.]))
+
+    def train_dynamics(self, batch):
+        skills = batch['skills']
+        cur_states = batch['cur_states']
+        skill_goals = batch['skill_goals']
+
+        df_input = torch.cat([cur_states, skill_goals], dim=1)
+        # df_input = cur_states - skill_goals
+        df_distribution = self.df(df_input)
+        log_likelihood = df_distribution.log_prob(skills)
+        df_loss = -log_likelihood.mean()
+
+        sf_input = torch.cat([cur_states, skills], dim=1)
+        # df_input = cur_states - skill_goals
+        sf_distribution = self.skill_dynamics(sf_input)
+        log_likelihood = sf_distribution.log_prob(skill_goals - cur_states)
+        sf_loss = -log_likelihood.mean()
+
+        self.sf_optimizer.zero_grad()
+        sf_loss.backward()
+        self.sf_optimizer.step()
+
+        self.df_optimizer.zero_grad()
+        df_loss.backward()
+        self.df_optimizer.step()
+
+        self.eval_statistics['DF Loss'] = np.mean(ptu.get_numpy(df_loss))
+        self.eval_statistics['SF Loss'] = np.mean(ptu.get_numpy(sf_loss))
 
 
     def train_from_torch(self, batch):
@@ -121,8 +157,12 @@ class GCSTrainer2(TorchTrainer):
         """
         df_input = torch.cat([cur_states, skill_goals], dim=1)
         df_distribution = self.df(df_input)
-        log_likelihood = df_distribution.log_prob(skills)
-        rewards = log_likelihood.view(-1,1)
+        df_log_likelihood = df_distribution.log_prob(skills)
+        sf_input = torch.cat([cur_states, skills], dim=1)
+        sf_distribution = self.skill_dynamics(sf_input)
+        sf_log_likelihood = sf_distribution.log_prob(skill_goals - cur_states)
+        rewards = self._calc_dads_reward(cur_states, skill_goals, skills) + df_log_likelihood.view(-1,1)
+        # rewards = log_likelihood.view(-1,1)
         # rewards = self._calc_reward(cur_states, skill_goals, skills)
         # df_loss = -log_likelihood.mean()
 
@@ -279,23 +319,44 @@ class GCSTrainer2(TorchTrainer):
             df=self.df
         )
 
-    def _calc_reward(self, cur_states, skill_goals, skills):
-        df_input = torch.cat([cur_states, skill_goals], dim=1)
-        df_distribution = self.df(df_input)
-        logp = df_distribution.log_prob(skills).view(-1, 1)
+    def _calc_dads_reward(self, cur_states, state_diff, skills):
+        num_sample_goal = 20
+        sf_input = torch.cat([cur_states, skills], dim=1)
+        # df_input = cur_states - skill_goals
+        df_distribution = self.skill_dynamics(sf_input)
+        logp = df_distribution.log_prob(state_diff).view(-1, 1)
         #Other goal
         cur_states = ptu.get_numpy(cur_states)
         num_rows =len(cur_states)
-        goals_sampled = ptu.get_numpy(self.goal_distribution.sample(torch.Size([10])))
-        a = np.repeat(cur_states, 10, axis=0)
+        goals_sampled = ptu.get_numpy(self.policy.skill_space.sample(torch.Size([num_sample_goal])))
+        a = np.repeat(cur_states, num_sample_goal, axis=0)
         b = np.tile(goals_sampled, (num_rows,1))
         c = torch.Tensor(np.concatenate([a,b], axis=1))
-        x = torch.Tensor(np.tile(ptu.get_numpy(skills), (10, 1)))
-        log_prob_sample_goal = self.df(c).log_prob(x).view(-1,10)
+        # c = torch.Tensor(b-a)
+        x = torch.Tensor(np.repeat(ptu.get_numpy(state_diff), num_sample_goal, axis=0))
+        log_prob_sample_goal = self.skill_dynamics(c).log_prob(x).view(-1,num_sample_goal)
         # denom = torch.sum(torch.exp(log_prob), dim=1)
-        diff = np.clip(ptu.get_numpy(log_prob_sample_goal - logp),-50, 50)
-        rewards = torch.Tensor(-np.log(1 + np.exp(diff).sum(axis=1))).view(num_rows, -1)
+        diff = torch.clamp(log_prob_sample_goal - logp,-20, 10)
+        rewards = -torch.log(1 + torch.exp(diff).sum(dim=1)).view(num_rows, -1) + np.log(20)
         return rewards
+
+    # def _calc_reward(self, cur_states, skill_goals, skills):
+    #     df_input = torch.cat([cur_states, skill_goals], dim=1)
+    #     df_distribution = self.df(df_input)
+    #     logp = df_distribution.log_prob(skills).view(-1, 1)
+    #     #Other goal
+    #     cur_states = ptu.get_numpy(cur_states)
+    #     num_rows =len(cur_states)
+    #     goals_sampled = ptu.get_numpy(self.goal_distribution.sample(torch.Size([10])))
+    #     a = np.repeat(cur_states, 10, axis=0)
+    #     b = np.tile(goals_sampled, (num_rows,1))
+    #     c = torch.Tensor(np.concatenate([a,b], axis=1))
+    #     x = torch.Tensor(np.tile(ptu.get_numpy(skills), (10, 1)))
+    #     log_prob_sample_goal = self.df(c).log_prob(x).view(-1,10)
+    #     # denom = torch.sum(torch.exp(log_prob), dim=1)
+    #     diff = np.clip(ptu.get_numpy(log_prob_sample_goal - logp),-50, 50)
+    #     rewards = torch.Tensor(-np.log(1 + np.exp(diff).sum(axis=1))).view(num_rows, -1)
+    #     return rewards
 
 
 def get_indices(length, exclude_ind):

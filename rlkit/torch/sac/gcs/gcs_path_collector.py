@@ -117,12 +117,12 @@ class GCSMdpPathCollector(MdpPathCollector):
         if render:
             self._env.render(**render_kwargs)
         while path_length < max_path_length:
-            a, agent_info = self._policy.get_action(o_policy)
+            a, agent_info = self._policy.get_action(o_policy, return_log_prob=True)
             next_o, r, d, env_info = self._env.step(a)
             observations.append(o)
             rewards.append(r)
             terminals.append(d)
-            actions.append(a)
+            actions.append(a[0])
             agent_infos.append(agent_info)
             env_infos.append(env_info)
             if self.goal_ind:

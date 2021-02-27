@@ -19,6 +19,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
         self._skill = np.zeros((max_replay_buffer_size, skill_dim))
         self._cur_state = np.zeros((max_replay_buffer_size, goal_dim))
         self._skill_goal = np.zeros((max_replay_buffer_size, goal_dim))
+        self._log_prob = np.zeros((max_replay_buffer_size, 1))
 
         super().__init__(
             max_replay_buffer_size=max_replay_buffer_size,
@@ -78,6 +79,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
         self._skill[self._top] = agent_info["skill"]
         self._cur_state[self._top] = agent_info['cur_state']
         self._skill_goal[self._top] = agent_info["skill_goal"]
+        self._log_prob[self._top] = agent_info["log_prob"]
 
         return super().add_sample(
             observation=observation,
@@ -98,7 +100,8 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
             next_observations=self._next_obs[indices],
             skills=self._skill[indices],
             cur_states=self._cur_state[indices],
-            skill_goals=self._skill_goal[indices]
+            skill_goals=self._skill_goal[indices],
+            log_probs=self._log_prob[indices]
         )
         for key in self._env_info_keys:
             assert key not in batch.keys()

@@ -112,6 +112,11 @@ class SkillTanhGaussianPolicy(TanhGaussianPolicy):
             mean_action_log_prob, pre_tanh_value,
         )
 
+    # def log_prob(self, obs_np, skill_vec, a_np):
+    #     _, mean, _, _, _, std, *_ = eval_np(self, obs_np, skill_vec=skill_vec, deterministic=False)
+    #     distribution = TanhNormal(mean, std)
+    #     return eval_np(distribution.log_prob, a_np)
+
 
 class UniformSkillTanhGaussianPolicy(SkillTanhGaussianPolicy):
     def __init__(
@@ -138,12 +143,17 @@ class UniformSkillTanhGaussianPolicy(SkillTanhGaussianPolicy):
         self.skill_space = Uniform(torch.Tensor(low), torch.Tensor(high))
         self.skill = self.skill_space.sample().cpu().numpy()
 
-    def get_action(self, obs_np, deterministic=False):
+    def get_action(self, obs_np, deterministic=False, return_log_prob=False):
         # generate (skill_dim, ) matrix that stacks one-hot skill vectors
         # online reinforcement learning
         obs_np = np.concatenate((obs_np, self.skill), axis=0)
-        actions = self.get_actions(obs_np[None], deterministic=deterministic)
-        return actions[0, :], {"skill": self.skill}
+        action, _, _, log_prob, *_ = self.get_actions(obs_np[None], deterministic=deterministic, return_log_prob=return_log_prob)
+        # if return_log_prob:
+        return action[0,:], {"skill": self.skill, "log_prob": log_prob[0]}
+        # return action[0,:], {"skill": self.skill}
+
+    def get_actions(self, obs_np, deterministic=False, return_log_prob=False):
+        return eval_np(self, obs_np, deterministic=deterministic, return_log_prob=return_log_prob)
 
     def skill_reset(self):
         self.skill = self.skill_space.sample().cpu().numpy()
@@ -151,6 +161,13 @@ class UniformSkillTanhGaussianPolicy(SkillTanhGaussianPolicy):
     def reset(self):
         self.skill_reset()
         super(UniformSkillTanhGaussianPolicy, self).reset()
+
+    def log_prob(self, obs, skill, a):
+        obs_np = torch.cat([obs, skill], dim=1)
+        _, mean, _, _, _, std, *_ = self(obs_np, deterministic=False)
+        distribution = TanhNormal(mean, std)
+        log_prob = distribution.log_prob(a).sum(dim=1, keepdim=True)
+        return log_prob
 
 
 class MakeDeterministic(Policy):

@@ -30,6 +30,7 @@ class DADSTrainer(TorchTrainer):
             policy_lr=1e-3,
             qf_lr=1e-3,
             sf_lr=1e-3,
+            alpha_is=10,
             optimizer_class=optim.Adam,
 
             soft_target_tau=1e-2,
@@ -91,6 +92,7 @@ class DADSTrainer(TorchTrainer):
 
         self.discount = discount
         self.reward_scale = reward_scale
+        self.alpha_is = alpha_is
         self.eval_statistics = OrderedDict()
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
@@ -101,20 +103,22 @@ class DADSTrainer(TorchTrainer):
 
     def train_skill_dynamics(self, batch):
         skills = batch['skills']
+        actions = batch['actions']
         cur_states = batch['cur_states']
         skill_goals = batch['skill_goals']
+        log_probs_old = batch['log_probs']
 
         sf_input = torch.cat([cur_states, skills], dim=1)
-        # df_input = cur_states - skill_goals
         sf_distribution = self.skill_dynamics(sf_input)
         log_likelihood = sf_distribution.log_prob(skill_goals-cur_states)
-        sf_loss = -log_likelihood.mean()
+        importance_weight = self._calc_importance_weight(self.policy.log_prob(cur_states,skills,actions), log_probs_old)
+        sf_loss = -torch.mean(log_likelihood * importance_weight)
 
         self.sf_optimizer.zero_grad()
         sf_loss.backward()
         self.sf_optimizer.step()
 
-        self.eval_statistics['DF Loss'] = np.mean(ptu.get_numpy(sf_loss))
+        self.eval_statistics['SD Loss'] = np.mean(ptu.get_numpy(sf_loss))
 
     def train_from_torch(self, batch):
         rewards = batch['rewards']
@@ -312,6 +316,10 @@ class DADSTrainer(TorchTrainer):
         diff = torch.clamp(log_prob_sample_goal - logp,-20, 10)
         rewards = -torch.log(1 + torch.exp(diff).sum(dim=1)).view(num_rows, -1) + np.log(20)
         return rewards
+
+    def _calc_importance_weight(self, log_prob_new, log_prob_old):
+        ratio = torch.exp(log_prob_new - log_prob_old)
+        return torch.clamp(ratio, 1/self.alpha_is, self.alpha_is)
 
 
 def get_indices(length, exclude_ind):

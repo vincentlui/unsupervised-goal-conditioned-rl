@@ -96,16 +96,16 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         """
         Exploration
         """
-        logger.record_dict(
-            self.expl_data_collector.get_diagnostics(),
-            prefix='exploration/'
-        )
+        # logger.record_dict(
+        #     self.expl_data_collector.get_diagnostics(),
+        #     prefix='exploration/'
+        # )
         expl_paths = self.expl_data_collector.get_epoch_paths()
-        if hasattr(self.expl_env, 'get_diagnostics'):
-            logger.record_dict(
-                self.expl_env.get_diagnostics(expl_paths),
-                prefix='exploration/',
-            )
+        # if hasattr(self.expl_env, 'get_diagnostics'):
+        #     logger.record_dict(
+        #         self.expl_env.get_diagnostics(expl_paths),
+        #         prefix='exploration/',
+        #     )
         logger.record_dict(
             eval_util.get_generic_path_information(expl_paths),
             prefix="exploration/",
@@ -113,16 +113,16 @@ class BaseRLAlgorithm(object, metaclass=abc.ABCMeta):
         """
         Evaluation
         """
-        logger.record_dict(
-            self.eval_data_collector.get_diagnostics(),
-            prefix='evaluation/',
-        )
-        eval_paths = self.eval_data_collector.get_epoch_paths()
-        if hasattr(self.eval_env, 'get_diagnostics'):
-            logger.record_dict(
-                self.eval_env.get_diagnostics(eval_paths),
-                prefix='evaluation/',
-            )
+        # logger.record_dict(
+        #     self.eval_data_collector.get_diagnostics(),
+        #     prefix='evaluation/',
+        # )
+        # eval_paths = self.eval_data_collector.get_epoch_paths()
+        # if hasattr(self.eval_env, 'get_diagnostics'):
+        #     logger.record_dict(
+        #         self.eval_env.get_diagnostics(eval_paths),
+        #         prefix='evaluation/',
+        #     )
         # logger.record_dict(
         #     eval_util.get_generic_path_information(eval_paths),
         #     prefix="evaluation/",

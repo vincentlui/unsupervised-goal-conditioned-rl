@@ -5,7 +5,8 @@ import gym
 import numpy as np
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from envs.navigation2d.navigation2d import Navigation2d
-from envs.mujoco.ant import AntEnv
+from rlkit.envs.mujoco.ant import AntEnv
+from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 from rlkit.samplers.util import DIAYNRollout as rollout
 
 
@@ -30,13 +31,14 @@ def simulate_policy2(args):
     data = torch.load(args.file, map_location='cpu')
     policy = data['evaluation/policy']
     # envs = NormalizedBoxEnv(Navigation2d())
-    env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
+    # env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
+    env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
     figure = plt.figure()
-    skills = torch.Tensor(np.vstack([np.arange(-1, 1.1, 0.2), 0.5 * np.ones(11)])).transpose(1, 0)
-    for _ in range(10):
-        skill = policy.stochastic_policy.skill_space.sample()
+    skills = torch.Tensor(np.vstack([np.arange(-1, 1.1, 0.4), 0 * np.ones(6)])).transpose(1, 0)
+    skills = torch.Tensor(np.vstack([0.8 * np.ones(6), 0.8 * np.ones(6)])).transpose(1, 0)
+    for skill in skills:
         # print(skill)
-        path = DIAYNRollout(env, policy, skill, max_path_length=args.H, render=True)
+        path = DIAYNRollout(env, policy.stochastic_policy, skill, max_path_length=args.H, render=True)
         obs = path['observations']
         plt.plot(obs[:,0], obs[:,1])#, label=tuple(skill.numpy()))
         action = path['actions']
@@ -86,8 +88,8 @@ def DIAYNRollout(env, agent, skill, max_path_length=np.inf, render=False):
         images.append(img)
 
     while path_length < max_path_length:
-        agent.stochastic_policy.skill = skill
-        a, agent_info = agent.get_action(o[2:])
+        agent.skill = skill
+        a, agent_info = agent.get_action(o[1:])
         next_o, r, d, env_info = env.step(a)
         observations.append(o)
         rewards.append(r)
