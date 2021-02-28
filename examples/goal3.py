@@ -138,7 +138,7 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS-discrete",
         version="normal",
-        layer_size=128,
+        layer_size=32,
         replay_buffer_size=int(5E5),
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
@@ -147,7 +147,7 @@ if __name__ == "__main__":
             num_expl_steps_per_train_loop=2000,
             num_trains_discriminator_per_train_loop=0,
             min_num_steps_before_training=0,
-            max_path_length=200,
+            max_path_length=40,
             batch_size=128, #256
         )
         ,

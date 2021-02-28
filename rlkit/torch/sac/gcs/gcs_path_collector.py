@@ -39,15 +39,14 @@ class GCSMdpPathCollector(MdpPathCollector):
         paths = []
         num_steps_collected = 0
         while num_steps_collected < num_steps:
-            max_path_length_this_loop = max_path_length - self.skill_horizon
-            # max_path_length_this_loop = min(  # Do not go over num_steps
-            #     max_path_length - self.skill_horizon,
-            #     num_steps - num_steps_collected,
-            # )
+            max_path_length_this_loop = min(  # Do not go over num_steps
+                max_path_length - self.skill_horizon,
+                num_steps - num_steps_collected,
+            )
 
             self._policy.skill_reset()
 
-            path = self._rollout2(
+            path = self._rollout(
                 max_path_length=max_path_length_this_loop,
                 skill_horizon=self.skill_horizon,
                 render=self._render
@@ -228,7 +227,7 @@ class GCSMdpPathCollector(MdpPathCollector):
         while path_length < max_path_length:
             a, agent_info = self._policy.get_action(o_policy, return_log_prob=True)
             next_o, r, d, env_info = self._env.step(a)
-            if path_length < max_path_length - skill_horizon:
+            if path_length <= max_path_length - skill_horizon:
                 observations.append(o)
                 rewards.append(r)
                 terminals.append(d)
@@ -241,7 +240,7 @@ class GCSMdpPathCollector(MdpPathCollector):
                 else:
                     current_states.append(o)
             path_length += 1
-            if path_length > skill_horizon:
+            if path_length >= skill_horizon:
                 if self.goal_ind:
                     skill_goals.append(next_o[self.goal_ind])
                 else:

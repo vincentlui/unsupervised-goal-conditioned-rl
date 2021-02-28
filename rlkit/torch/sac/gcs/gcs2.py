@@ -146,7 +146,7 @@ class GCSTrainer2(TorchTrainer):
         next_obs = batch['next_observations']
         skills = batch['skills']
         cur_states = batch['cur_states']
-        skill_goals = batch['skill_goals']
+        goal_states = batch['skill_goals']
 
         if self.exclude_obs_ind:
             obs = obs[:, self.obs_ind]
@@ -155,16 +155,18 @@ class GCSTrainer2(TorchTrainer):
         """
         DF Loss and Intrinsic Reward
         """
+        skill_goals = goal_states-cur_states
         df_input = torch.cat([cur_states, skill_goals], dim=1)
         df_distribution = self.df(df_input)
         df_log_likelihood = df_distribution.log_prob(skills)
+        df_loss = - df_log_likelihood.mean()
         sf_input = torch.cat([cur_states, skills], dim=1)
         sf_distribution = self.skill_dynamics(sf_input)
-        sf_log_likelihood = sf_distribution.log_prob(skill_goals - cur_states)
+        sf_log_likelihood = sf_distribution.log_prob(skill_goals)
+        sf_loss = -sf_log_likelihood.mean()
         rewards = self._calc_dads_reward(cur_states, skill_goals, skills) + df_log_likelihood.view(-1,1)
         # rewards = log_likelihood.view(-1,1)
         # rewards = self._calc_reward(cur_states, skill_goals, skills)
-        # df_loss = -log_likelihood.mean()
 
         """
         Policy and Alpha Loss
@@ -211,9 +213,13 @@ class GCSTrainer2(TorchTrainer):
         """
         Update networks
         """
-        # self.df_optimizer.zero_grad()
-        # df_loss.backward()
-        # self.df_optimizer.step()
+        self.df_optimizer.zero_grad()
+        df_loss.backward()
+        self.df_optimizer.step()
+
+        self.sf_optimizer.zero_grad()
+        sf_loss.backward()
+        self.sf_optimizer.step()
 
         self.qf1_optimizer.zero_grad()
         qf1_loss.backward()
@@ -252,7 +258,8 @@ class GCSTrainer2(TorchTrainer):
             policy_loss = (log_pi - q_new_actions).mean()
 
             self.eval_statistics['Intrinsic Rewards'] = np.mean(ptu.get_numpy(rewards))
-            # self.eval_statistics['DF Loss'] = np.mean(ptu.get_numpy(df_loss))
+            self.eval_statistics['DF Loss'] = np.mean(ptu.get_numpy(df_loss))
+            self.eval_statistics['SF Loss'] = np.mean(ptu.get_numpy(sf_loss))
             # self.eval_statistics['DF Accuracy'] = np.mean(ptu.get_numpy(df_accuracy))
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))

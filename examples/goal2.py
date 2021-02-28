@@ -2,8 +2,8 @@ import gym
 import argparse
 # from gym.envs.mujoco import HalfCheetahEnv
 from envs.navigation2d.navigation2d import Navigation2d
-from rlkit.envs.mujoco.ant import AntEnv
-from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
+# from rlkit.envs.mujoco.ant import AntEnv
+# from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 
 import rlkit.torch.pytorch_util as ptu
 # from rlkit.torch.sac.diayn.diayn_env_replay_buffer import DIAYNEnvReplayBuffer
@@ -28,7 +28,7 @@ from rlkit.torch.sac.gcs.skill_dynamics import SkillDynamics
 
 def experiment(variant, args):
     expl_env, eval_env = get_env(str(args.env))
-    obs_dim = expl_env.observation_space.low.size -1
+    obs_dim = expl_env.observation_space.low.size - (len(variant['exclude_obs_ind']) if variant['exclude_obs_ind'] else 0)
     action_dim = eval_env.action_space.low.size
     skill_dim = args.skill_dim
     # ends_dim = expl_env.observation_space.low.size
@@ -62,18 +62,18 @@ def experiment(variant, args):
         # std=[0.1, 0.1]
     )
     skill_dynamics = SkillDynamics(
-        input_size=ends_dim + skill_dim,
+        input_size=obs_dim + skill_dim,
         output_size=ends_dim,
         hidden_sizes=[M, M],
-        # std=[0.1, 0.1]
+        std=[0.1, 0.1]
     )
     policy = UniformSkillTanhGaussianPolicy(
-        obs_dim=obs_dim + skill_dim ,
+        obs_dim=obs_dim + skill_dim,
         action_dim=action_dim,
         hidden_sizes=[M, M],
         skill_dim=skill_dim,
-        low=[-1,-1],
-        high=[1,1],
+        low=[-1] * skill_dim,
+        high=[1] * skill_dim,
     )
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = DIAYNMdpPathCollector(
@@ -83,9 +83,9 @@ def experiment(variant, args):
     expl_step_collector = GCSMdpPathCollector(
         expl_env,
         policy,
-        exclude_obs_ind=[0],
-        goal_ind=[0],
-        skill_horizon=1,
+        exclude_obs_ind=variant['exclude_obs_ind'],
+        goal_ind=variant['goal_ind'],
+        skill_horizon=variant['skill_horizon'],
         # render=True
     )
     replay_buffer = GCSEnvReplayBuffer(
@@ -100,13 +100,12 @@ def experiment(variant, args):
         qf1=qf1,
         qf2=qf2,
         df=df,
-        skill_dynamics=skill_dynamics,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
-        exclude_obs_ind=[0],
+        skill_dynamics=skill_dynamics,
         **variant['trainer_kwargs']
     )
-    algorithm = GCSTorchOnlineRLAlgorithm2(
+    algorithm = GCSTorchOnlineRLAlgorithm(
         trainer=trainer,
         exploration_env=expl_env,
         evaluation_env=eval_env,
@@ -125,10 +124,10 @@ def get_env(name):
         # expl_env.set_random_start_state(True)
         # eval_env.set_random_start_state(True)
         return NormalizedBoxEnv(expl_env), NormalizedBoxEnv(eval_env)
-    elif name == 'Ant':
-        return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
-    elif name == 'Half-cheetah':
-        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
+    # elif name == 'Ant':
+    #     return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
+    # elif name == 'Half-cheetah':
+    #     return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
 
     return NormalizedBoxEnv(gym.make('name')), NormalizedBoxEnv(gym.make('name'))
 
@@ -149,16 +148,19 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS2",
         version="normal",
-        layer_size=128,
+        layer_size=32,
         replay_buffer_size=int(5E4),
+        exclude_obs_ind=None,
+        goal_ind=None,
+        skill_horizon=1,
         algorithm_kwargs=dict(
-            num_epochs=3000, #1000
+            num_epochs=1000, #1000
             num_eval_steps_per_epoch=0,
             num_trains_per_train_loop=100,
             num_expl_steps_per_train_loop=2000,
             num_trains_discriminator_per_train_loop=32,
             min_num_steps_before_training=0,
-            max_path_length=200,
+            max_path_length=20,
             batch_size=128, #256
         )
         ,
