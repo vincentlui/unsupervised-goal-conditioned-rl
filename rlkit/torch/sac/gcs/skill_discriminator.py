@@ -37,7 +37,7 @@ class SkillDiscriminator(Mlp):
         self.log_std = None
         self.std = std
         self.last_activation = last_activation
-        self.batchnorm_input = torch.nn.BatchNorm1d(input_size)
+        # self.batchnorm_input = torch.nn.BatchNorm1d(input_size)
         self.batchnorm_hidden = [torch.nn.BatchNorm1d(h) for h in hidden_sizes]
         # self.batchnorm_output = torch.nn.BatchNorm1d(skill_dim)
 
@@ -56,7 +56,7 @@ class SkillDiscriminator(Mlp):
     def forward(
             self, input, return_preactivations=False,
     ):
-        h = self.batchnorm_input(input)
+        h = input
         for i, fc in enumerate(self.fcs):
             h = self.batchnorm_hidden[i](self.hidden_activation(fc(h)))
         mean = self.last_fc(h)
@@ -99,7 +99,7 @@ class DiscreteSkillDiscriminator(Mlp):
     def forward(
             self, input, return_preactivations=False,
     ):
-        h = self.batchnorm_input(input)
+        h = input
         for i, fc in enumerate(self.fcs):
             h = self.batchnorm_hidden[i](self.hidden_activation(fc(h)))
         out = self.last_fc(h)

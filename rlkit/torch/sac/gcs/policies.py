@@ -33,7 +33,9 @@ class SkillTanhGaussianPolicy(TanhGaussianPolicy):
             **kwargs
         )
         self.skill_dim = skill_dim
-        self.skill_reset()
+        self.skill = random.randint(0, self.skill_dim - 1)
+        self.skill_vec = np.zeros(self.skill_dim)
+        self.skill_vec[self.skill] += 1
 
     def get_action(self, obs_np, deterministic=False, return_log_prob=False):
         # generate (skill_dim, ) matrix that stacks one-hot skill vectors
@@ -48,6 +50,11 @@ class SkillTanhGaussianPolicy(TanhGaussianPolicy):
 
     def get_actions(self, obs_np, deterministic=False, return_log_prob=False):
         return eval_np(self, obs_np, deterministic=deterministic, return_log_prob=return_log_prob)
+
+    def set_skill(self, skill):
+        self.skill = skill
+        self.skill_vec = np.zeros(self.skill_dim)
+        self.skill_vec[self.skill] += 1
 
     def skill_reset(self):
         self.skill = random.randint(0, self.skill_dim-1)

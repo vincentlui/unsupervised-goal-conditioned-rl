@@ -134,7 +134,7 @@ class GCSMdpPathCollector(MdpPathCollector):
 
             if skill_step >= skill_horizon:
                 skill_step = 0
-                self._policy.skill_reset()
+                # self._policy.skill_reset()
                 if self.goal_ind:
                     skill_goals.append(next_o[self.goal_ind])
                 else:

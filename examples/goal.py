@@ -2,8 +2,8 @@ import gym
 import argparse
 # from gym.envs.mujoco import HalfCheetahEnv
 from envs.navigation2d.navigation2d import Navigation2d
-from rlkit.envs.mujoco.ant import AntEnv
-from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
+# from rlkit.envs.mujoco.ant import AntEnv
+# from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 
 import rlkit.torch.pytorch_util as ptu
 # from rlkit.torch.sac.diayn.diayn_env_replay_buffer import DIAYNEnvReplayBuffer
@@ -55,10 +55,10 @@ def experiment(variant, args):
         hidden_sizes=[M, M],
     )
     df = SkillDiscriminator(
-        input_size=ends_dim + ends_dim,
+        input_size=obs_dim + ends_dim,
         skill_dim=skill_dim,
         hidden_sizes=[M, M],
-        # std=[0.1, 0.1]
+        std=[0.1, 0.1]
     )
     policy = UniformSkillTanhGaussianPolicy(
         obs_dim=obs_dim + skill_dim ,
@@ -78,7 +78,7 @@ def experiment(variant, args):
         policy,
         # exclude_obs_ind=[0],
         # goal_ind=[0],
-        skill_horizon=1,
+        skill_horizon=20,
         # render=True
     )
     replay_buffer = GCSEnvReplayBuffer(
@@ -117,10 +117,10 @@ def get_env(name):
         # expl_env.set_random_start_state(True)
         # eval_env.set_random_start_state(True)
         return NormalizedBoxEnv(expl_env), NormalizedBoxEnv(eval_env)
-    elif name == 'Ant':
-        return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
-    elif name == 'Half-cheetah':
-        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
+    # elif name == 'Ant':
+    #     return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
+    # elif name == 'Half-cheetah':
+    #     return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
 
     return NormalizedBoxEnv(gym.make('name')), NormalizedBoxEnv(gym.make('name'))
 
@@ -141,16 +141,16 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS",
         version="normal",
-        layer_size=128,
-        replay_buffer_size=int(5E5),
+        layer_size=32,
+        replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
             num_trains_per_train_loop=100,
             num_expl_steps_per_train_loop=2000,
-            num_trains_discriminator_per_train_loop=32,
+            num_trains_discriminator_per_train_loop=16,
             min_num_steps_before_training=0,
-            max_path_length=200,
+            max_path_length=40,
             batch_size=128, #256
         )
         ,
