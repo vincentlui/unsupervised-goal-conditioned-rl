@@ -2,8 +2,8 @@ import gym
 import argparse
 # from gym.envs.mujoco import HalfCheetahEnv
 from envs.navigation2d.navigation2d import Navigation2d
-from rlkit.envs.mujoco.ant import AntEnv
-from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
+# from rlkit.envs.mujoco.ant import AntEnv
+# from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 
 import rlkit.torch.pytorch_util as ptu
 # from rlkit.torch.sac.diayn.diayn_env_replay_buffer import DIAYNEnvReplayBuffer
@@ -27,7 +27,7 @@ from rlkit.torch.sac.gcs.policies import UniformSkillTanhGaussianPolicy
 
 def experiment(variant, args):
     expl_env, eval_env = get_env(str(args.env))
-    obs_dim = expl_env.observation_space.low.size -1
+    obs_dim = expl_env.observation_space.low.size - (len(variant['exclude_obs_ind']) if variant['exclude_obs_ind'] else 0)
     action_dim = eval_env.action_space.low.size
     skill_dim = args.skill_dim
     # ends_dim = expl_env.observation_space.low.size
@@ -76,9 +76,9 @@ def experiment(variant, args):
     expl_step_collector = GCSMdpPathCollector(
         expl_env,
         policy,
-        exclude_obs_ind=[0],
-        goal_ind=[0],
-        skill_horizon=1,
+        exclude_obs_ind=variant['exclude_obs_ind'],
+        goal_ind=variant['goal_ind'],
+        skill_horizon=variant['skill_horizon'],
         # render=True
     )
     replay_buffer = GCSEnvReplayBuffer(
@@ -95,7 +95,7 @@ def experiment(variant, args):
         df=df,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
-        exclude_obs_ind=[0],
+        exclude_obs_ind=variant['exclude_obs_ind'],
         **variant['trainer_kwargs']
     )
     algorithm = GCSTorchOnlineRLAlgorithm(
@@ -117,10 +117,10 @@ def get_env(name):
         # expl_env.set_random_start_state(True)
         # eval_env.set_random_start_state(True)
         return NormalizedBoxEnv(expl_env), NormalizedBoxEnv(eval_env)
-    elif name == 'Ant':
-        return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
-    elif name == 'Half-cheetah':
-        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
+    # elif name == 'Ant':
+    #     return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
+    # elif name == 'Half-cheetah':
+    #     return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
 
     return NormalizedBoxEnv(gym.make('name')), NormalizedBoxEnv(gym.make('name'))
 
@@ -141,16 +141,19 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS",
         version="normal",
-        layer_size=128,
+        layer_size=32,
         replay_buffer_size=int(1E6),
+        exclude_obs_ind=None,
+        goal_ind=None,
+        skill_horizon=5,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
-            num_trains_per_train_loop=300,
+            num_trains_per_train_loop=100,
             num_expl_steps_per_train_loop=2000,
             num_trains_discriminator_per_train_loop=0,
             min_num_steps_before_training=0,
-            max_path_length=200,
+            max_path_length=30,
             batch_size=128, #256
         )
         ,

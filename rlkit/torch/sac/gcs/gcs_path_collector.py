@@ -39,14 +39,15 @@ class GCSMdpPathCollector(MdpPathCollector):
         paths = []
         num_steps_collected = 0
         while num_steps_collected < num_steps:
-            max_path_length_this_loop = min(  # Do not go over num_steps
-                max_path_length,
-                num_steps - num_steps_collected,
-            )
+            max_path_length_this_loop = max_path_length - self.skill_horizon
+            # max_path_length_this_loop = min(  # Do not go over num_steps
+            #     max_path_length - self.skill_horizon,
+            #     num_steps - num_steps_collected,
+            # )
 
             self._policy.skill_reset()
 
-            path = self._rollout(
+            path = self._rollout2(
                 max_path_length=max_path_length_this_loop,
                 skill_horizon=self.skill_horizon,
                 render=self._render
@@ -184,6 +185,7 @@ class GCSMdpPathCollector(MdpPathCollector):
 
     def _rollout2(
             self,
+            skill_horizon=1,
             max_path_length=np.inf,
             render=False,
             render_kwargs=None,
@@ -213,27 +215,43 @@ class GCSMdpPathCollector(MdpPathCollector):
         skill_goals = []
         current_states = []
         o = self._env.reset()
+        o_policy = o
+        if self.exclude_obs_ind:
+            o_policy = o[self.obs_ind]
         self._policy.reset()
         next_o = None
+        last_next_o = None
         path_length = 0
         skill_step = 0
         if render:
             self._env.render(**render_kwargs)
         while path_length < max_path_length:
-            a, agent_info = self._policy.get_action(self._policy.skill)
+            a, agent_info = self._policy.get_action(o_policy, return_log_prob=True)
             next_o, r, d, env_info = self._env.step(a)
-            observations.append(o)
-            rewards.append(r)
-            terminals.append(d)
-            actions.append(a)
-            agent_infos.append(agent_info)
-            env_infos.append(env_info)
-
+            if path_length < max_path_length - skill_horizon:
+                observations.append(o)
+                rewards.append(r)
+                terminals.append(d)
+                actions.append(a[0])
+                agent_infos.append(agent_info)
+                env_infos.append(env_info)
+                last_next_o = next_o
+                if self.goal_ind:
+                    current_states.append(o[self.goal_ind])
+                else:
+                    current_states.append(o)
             path_length += 1
+            if path_length > skill_horizon:
+                if self.goal_ind:
+                    skill_goals.append(next_o[self.goal_ind])
+                else:
+                    skill_goals.append(next_o)
 
             if max_path_length == np.inf and d:
+                raise NotImplementedError()
                 break
             o = next_o
+            o_policy = o
             if self.exclude_obs_ind:
                 o_policy = o_policy[self.obs_ind]
             if render:
@@ -242,16 +260,22 @@ class GCSMdpPathCollector(MdpPathCollector):
         actions = np.array(actions)
         if len(actions.shape) == 1:
             actions = np.expand_dims(actions, 1)
+        current_states = np.array(current_states)
+        if len(actions.shape) == 1:
+            current_states = np.expand_dims(current_states, 1)
         observations = np.array(observations)
         if len(observations.shape) == 1:
             observations = np.expand_dims(observations, 1)
-            next_o = np.array([next_o])
+            next_o = np.array([last_next_o])
         next_observations = np.vstack(
             (
                 observations[1:, :],
-                np.expand_dims(next_o, 0)
+                np.expand_dims(last_next_o, 0)
             )
         )
+        skill_goals = np.array(skill_goals)
+        if len(skill_goals.shape) == 1:
+            skill_goals = np.expand_dims(skill_goals, 1)
         return dict(
             observations=observations,
             actions=actions,
@@ -260,6 +284,8 @@ class GCSMdpPathCollector(MdpPathCollector):
             terminals=np.array(terminals).reshape(-1, 1),
             agent_infos=agent_infos,
             env_infos=env_infos,
+            skill_goals=skill_goals,
+            current_states=current_states
         )
 
     # def get_diagnostics(self):
