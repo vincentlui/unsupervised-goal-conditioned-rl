@@ -46,7 +46,7 @@ def simulate_policy2(args):
         action = path['actions']
         # print(action)
 
-    plt.xlim([-2,2])
+    plt.xlim([-10,10])
     plt.ylim([-2,2])
     # plt.legend()
     plt.show()
