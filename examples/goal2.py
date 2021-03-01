@@ -22,7 +22,7 @@ from rlkit.torch.sac.diayn.diayn_torch_online_rl_algorithm import DIAYNTorchOnli
 from rlkit.torch.sac.gcs.skill_discriminator import SkillDiscriminator
 from rlkit.torch.sac.gcs.gcs_torch_online_rl_algorithm import GCSTorchOnlineRLAlgorithm
 from rlkit.torch.sac.gcs.gcs_torch_online_rl_algorithm2 import GCSTorchOnlineRLAlgorithm2
-from rlkit.torch.sac.gcs.gcs_path_collector import GCSMdpPathCollector
+from rlkit.torch.sac.gcs.gcs_path_collector import GCSMdpPathCollector, GCSMdpPathCollector2
 from rlkit.torch.sac.gcs.policies import UniformSkillTanhGaussianPolicy
 from rlkit.torch.sac.gcs.skill_dynamics import SkillDynamics
 from rlkit.torch.sac.gcs.networks import FlattenBNMlp
@@ -90,7 +90,7 @@ def experiment(variant, args):
         eval_env,
         eval_policy,
     )
-    expl_step_collector = GCSMdpPathCollector(
+    expl_step_collector = GCSMdpPathCollector2(
         expl_env,
         policy,
         exclude_obs_ind=variant['exclude_obs_ind'],
@@ -136,10 +136,10 @@ def get_env(name):
         # expl_env.set_random_start_state(True)
         # eval_env.set_random_start_state(True)
         return NormalizedBoxEnv(expl_env), NormalizedBoxEnv(eval_env)
-    elif name == 'Ant':
-        return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
-    elif name == 'Half-cheetah':
-        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
+    # elif name == 'Ant':
+    #     return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
+    # elif name == 'Half-cheetah':
+    #     return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
 
     return NormalizedBoxEnv(gym.make('name')), NormalizedBoxEnv(gym.make('name'))
 
@@ -169,8 +169,8 @@ if __name__ == "__main__":
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
-            num_trains_per_train_loop=100,
-            num_expl_steps_per_train_loop=1000,
+            num_trains_per_train_loop=20,
+            num_expl_steps_per_train_loop=2000,
             num_trains_discriminator_per_train_loop=32,
             min_num_steps_before_training=0,
             max_path_length=20,
