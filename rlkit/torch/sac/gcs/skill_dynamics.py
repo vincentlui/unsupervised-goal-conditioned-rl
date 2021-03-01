@@ -1,11 +1,11 @@
 import torch
 from torch import nn as nn
 from torch.nn import functional as F, BatchNorm1d
-from torch.distributions import Normal, Independent
+from torch.distributions import Normal, Independent, Categorical
 
 from rlkit.torch.networks import Mlp
 import numpy as np
-from rlkit.torch.sac.gcs.networks import BNMlp
+from rlkit.torch.sac.gcs.networks import BNMlp, MixtureSameFamily
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
@@ -20,11 +20,13 @@ class SkillDynamics(BNMlp):
             self,
             hidden_sizes,
             input_size,
-            output_size,
+            state_dim,
+            num_components=1,
             std=None,
             init_w=1e-3,
             **kwargs
     ):
+        output_size = state_dim * num_components
         super().__init__(
             hidden_sizes=hidden_sizes,
             input_size=input_size,
@@ -33,9 +35,11 @@ class SkillDynamics(BNMlp):
             **kwargs
         )
         # self.skill_dim = skill_dim
+        self.state_dim = state_dim
         self.log_std = None
         self.std = std
         self.batchnorm_output = BatchNorm1d(output_size, affine=False)
+        self.num_components = num_components
 
         if std is None:
             last_hidden_size = input_size
@@ -48,6 +52,11 @@ class SkillDynamics(BNMlp):
             self.std = torch.Tensor(np.array(std))
             self.log_std = torch.log(self.std)
             assert np.all(LOG_SIG_MIN <= self.log_std) and np.all(self.log_std <= LOG_SIG_MAX)
+
+        if num_components > 1:
+            self.last_fc_categorical = nn.Linear(hidden_sizes[-1], num_components)
+            self.last_fc_categorical.weight.data.uniform_(-init_w, init_w)
+            self.last_fc_categorical.bias.data.uniform_(-init_w, init_w)
 
     def forward(
             self, input, return_preactivations=False,
@@ -63,7 +72,16 @@ class SkillDynamics(BNMlp):
         else:
             std = self.std
 
-        distribution = Independent(Normal(mean, std), 1)
+        if self.num_components > 1:
+            mean = mean.view(-1, self.num_components, self.state_dim)
+            std = std.view(-1, self.num_components, self.state_dim)
+            categorical_logits = self.last_fc_categorical(h)
+            distribution = MixtureSameFamily(
+                Categorical(logits=categorical_logits),
+                Independent(Normal(mean, std), 1)
+            )
+        else:
+            distribution = Independent(Normal(mean, std), 1)
 
         return distribution
 

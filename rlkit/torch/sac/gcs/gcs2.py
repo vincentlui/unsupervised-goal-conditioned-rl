@@ -115,28 +115,29 @@ class GCSTrainer2(TorchTrainer):
         skills = batch['skills']
         cur_states = batch['cur_states']
         skill_goals = batch['skill_goals']
+        next_states = batch['next_states']
 
-        df_input = torch.cat([cur_states, skill_goals], dim=1)
-        # df_input = cur_states - skill_goals
-        df_distribution = self.df(df_input)
-        log_likelihood = df_distribution.log_prob(skills)
-        df_loss = -log_likelihood.mean()
+        # df_input = torch.cat([cur_states, skill_goals], dim=1)
+        # # df_input = cur_states - skill_goals
+        # df_distribution = self.df(df_input)
+        # log_likelihood = df_distribution.log_prob(skills)
+        # df_loss = -log_likelihood.mean()
 
         sf_input = torch.cat([cur_states, skills], dim=1)
         # df_input = cur_states - skill_goals
-        sf_distribution = self.skill_dynamics(sf_input)
-        log_likelihood = sf_distribution.log_prob(skill_goals - cur_states)
+        # sf_distribution = self.skill_dynamics(sf_input)
+        log_likelihood = self.skill_dynamics.log_prob(sf_input, next_states - cur_states)
         sf_loss = -log_likelihood.mean()
 
         self.sf_optimizer.zero_grad()
         sf_loss.backward()
         self.sf_optimizer.step()
 
-        self.df_optimizer.zero_grad()
-        df_loss.backward()
-        self.df_optimizer.step()
+        # self.df_optimizer.zero_grad()
+        # df_loss.backward()
+        # self.df_optimizer.step()
 
-        self.eval_statistics['DF Loss'] = np.mean(ptu.get_numpy(df_loss))
+        # self.eval_statistics['DF Loss'] = np.mean(ptu.get_numpy(df_loss))
         self.eval_statistics['SF Loss'] = np.mean(ptu.get_numpy(sf_loss))
 
 
@@ -150,6 +151,7 @@ class GCSTrainer2(TorchTrainer):
         cur_states = batch['cur_states']
         next_states = batch['next_states']
         goal_states = batch['skill_goals']
+        skill_steps = batch['skill_steps']
 
         if self.exclude_obs_ind:
             obs = obs[:, self.obs_ind]
@@ -159,7 +161,7 @@ class GCSTrainer2(TorchTrainer):
         DF Loss and Intrinsic Reward
         """
         skill_goals = goal_states-cur_states
-        df_input = torch.cat([obs, skill_goals], dim=1)
+        df_input = torch.cat([obs, skill_goals, skill_steps], dim=1)
         df_distribution = self.df(df_input)
         df_log_likelihood = df_distribution.log_prob(skills)
         df_loss = - df_log_likelihood.mean()
@@ -335,7 +337,7 @@ class GCSTrainer2(TorchTrainer):
     #     return [self.df, self.skill_dynamics, self.qf1, self.qf2, self.policy, self.target_qf2, self.target_qf1]
 
     def _calc_dads_reward(self, cur_states, state_diff, skills):
-        num_sample_goal = 20
+        num_sample_goal = 50
         sf_input = torch.cat([cur_states, skills], dim=1)
         # df_input = cur_states - skill_goals
         df_distribution = self.skill_dynamics(sf_input)

@@ -112,7 +112,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
             cur_states=self._cur_state[indices],
             next_states=self._next_state[indices],
             skill_goals=self._skill_goal[indices],
-            skill_steps = self._skill_steps,
+            skill_steps = self._skill_steps[indices],
             # log_probs=self._log_prob[indices]
         )
         for key in self._env_info_keys:

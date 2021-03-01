@@ -62,18 +62,19 @@ def experiment(variant, args):
         batch_norm=variant['batch_norm'],
     )
     df = SkillDiscriminator(
-        input_size=obs_dim + ends_dim,
+        input_size=obs_dim + ends_dim + 1,
         skill_dim=skill_dim,
         hidden_sizes=[M, M],
         output_activation=torch.tanh,
-        num_components=1,
+        num_components=4,
         # std=[0.1, 0.1]
     )
     skill_dynamics = SkillDynamics(
         input_size=obs_dim + skill_dim,
-        output_size=ends_dim,
+        state_dim=ends_dim,
         hidden_sizes=[M, M],
-        std=[0.1, 0.1]
+        num_components=4,
+        # std=[0.1, 0.1]
     )
     policy = UniformSkillTanhGaussianPolicy(
         obs_dim=obs_dim + skill_dim,
@@ -163,7 +164,7 @@ if __name__ == "__main__":
         exclude_obs_ind=None,#[0],
         goal_ind=None,#[0],
         skill_horizon=20,
-        batch_norm=True,
+        batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
