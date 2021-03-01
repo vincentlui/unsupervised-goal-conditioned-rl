@@ -146,6 +146,7 @@ class GCSTrainer2(TorchTrainer):
         next_obs = batch['next_observations']
         skills = batch['skills']
         cur_states = batch['cur_states']
+        next_states = batch['next_states']
         goal_states = batch['skill_goals']
 
         if self.exclude_obs_ind:
@@ -156,15 +157,17 @@ class GCSTrainer2(TorchTrainer):
         DF Loss and Intrinsic Reward
         """
         skill_goals = goal_states-cur_states
-        df_input = torch.cat([cur_states, skill_goals], dim=1)
+        df_input = torch.cat([obs, skill_goals], dim=1)
         df_distribution = self.df(df_input)
         df_log_likelihood = df_distribution.log_prob(skills)
         df_loss = - df_log_likelihood.mean()
-        sf_input = torch.cat([cur_states, skills], dim=1)
+
+        state_diff = next_states-cur_states
+        sf_input = torch.cat([obs, skills], dim=1)
         sf_distribution = self.skill_dynamics(sf_input)
-        sf_log_likelihood = sf_distribution.log_prob(skill_goals)
+        sf_log_likelihood = sf_distribution.log_prob(state_diff)
         sf_loss = -sf_log_likelihood.mean()
-        rewards = self._calc_dads_reward(cur_states, skill_goals, skills) + df_log_likelihood.view(-1,1)
+        rewards = self._calc_dads_reward(obs, state_diff, skills) + df_log_likelihood.view(-1,1)
         # rewards = log_likelihood.view(-1,1)
         # rewards = self._calc_reward(cur_states, skill_goals, skills)
 

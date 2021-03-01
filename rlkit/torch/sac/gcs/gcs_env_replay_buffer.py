@@ -18,6 +18,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
         self.goal_dim = goal_dim
         self._skill = np.zeros((max_replay_buffer_size, skill_dim))
         self._cur_state = np.zeros((max_replay_buffer_size, goal_dim))
+        self._next_state = np.zeros((max_replay_buffer_size, goal_dim))
         self._skill_goal = np.zeros((max_replay_buffer_size, goal_dim))
         self._log_prob = np.zeros((max_replay_buffer_size, 1))
 
@@ -48,8 +49,9 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
                 terminal,
                 agent_info,
                 env_info,
-                skill_goals,
-                current_states,
+                skill_goal,
+                current_state,
+                next_state
         ) in enumerate(zip(
             path["observations"],
             path["actions"],
@@ -60,9 +62,11 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
             path["env_infos"],
             path["skill_goals"],
             path["current_states"],
+            path["next_states"]
         )):
-            agent_info['cur_state'] = current_states #obs
-            agent_info['skill_goal'] = skill_goals
+            agent_info['cur_state'] = current_state
+            agent_info['next_state'] = next_state
+            agent_info['skill_goal'] = skill_goal
             self.add_sample(
                 observation=obs,
                 action=action,
@@ -78,6 +82,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
                    next_observation, agent_info, **kwargs):
         self._skill[self._top] = agent_info["skill"]
         self._cur_state[self._top] = agent_info['cur_state']
+        self._next_state[self._top] = agent_info["next_state"]
         self._skill_goal[self._top] = agent_info["skill_goal"]
         self._log_prob[self._top] = agent_info["log_prob"]
 
@@ -100,6 +105,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
             next_observations=self._next_obs[indices],
             skills=self._skill[indices],
             cur_states=self._cur_state[indices],
+            next_states=self._next_state[indices],
             skill_goals=self._skill_goal[indices],
             log_probs=self._log_prob[indices]
         )

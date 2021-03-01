@@ -106,6 +106,7 @@ class GCSMdpPathCollector(MdpPathCollector):
         env_infos = []
         skill_goals = []
         current_states = []
+        next_states = []
         o = self._env.reset()
         o_policy = o
         if self.exclude_obs_ind:
@@ -127,8 +128,10 @@ class GCSMdpPathCollector(MdpPathCollector):
             env_infos.append(env_info)
             if self.goal_ind:
                 current_states.append(o[self.goal_ind])
+                next_states.append(o[self.goal_ind])
             else:
                 current_states.append(o)
+                next_states.append(o)
             path_length += 1
             skill_step += 1
 
@@ -157,8 +160,11 @@ class GCSMdpPathCollector(MdpPathCollector):
         if len(actions.shape) == 1:
             actions = np.expand_dims(actions, 1)
         current_states = np.array(current_states)
-        if len(actions.shape) == 1:
+        if len(current_states.shape) == 1:
             current_states = np.expand_dims(current_states, 1)
+        next_states = np.array(next_states)
+        if len(next_states.shape) == 1:
+            next_states = np.expand_dims(next_states, 1)
         observations = np.array(observations)
         if len(observations.shape) == 1:
             observations = np.expand_dims(observations, 1)
@@ -179,7 +185,8 @@ class GCSMdpPathCollector(MdpPathCollector):
             agent_infos=agent_infos,
             env_infos=env_infos,
             skill_goals=skill_goals,
-            current_states=current_states
+            current_states=current_states,
+            next_states=next_states,
         )
 
     def _rollout2(
