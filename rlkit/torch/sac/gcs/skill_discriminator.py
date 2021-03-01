@@ -36,7 +36,7 @@ class SkillDiscriminator(BNMlp):
             output_size=output_size,
             init_w=init_w,
             output_activation=output_activation,
-            batch_norm=batch_norm
+            batch_norm=batch_norm,
             **kwargs
         )
         self.skill_dim = skill_dim
