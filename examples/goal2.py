@@ -2,8 +2,8 @@ import gym
 import argparse
 # from gym.envs.mujoco import HalfCheetahEnv
 from envs.navigation2d.navigation2d import Navigation2d
-from rlkit.envs.mujoco.ant import AntEnv
-from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
+# from rlkit.envs.mujoco.ant import AntEnv
+# from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 
 import torch
 import rlkit.torch.pytorch_util as ptu
@@ -67,6 +67,7 @@ def experiment(variant, args):
         hidden_sizes=[M, M],
         output_activation=torch.tanh,
         num_components=4,
+        batch_norm=variant['batch_norm'],
         # std=[0.1, 0.1]
     )
     skill_dynamics = SkillDynamics(

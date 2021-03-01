@@ -23,6 +23,7 @@ class SkillDiscriminator(BNMlp):
             input_size,
             skill_dim,
             num_components=1,
+            batch_norm=False,
             std=None,
             init_w=1e-3,
             output_activation=torch.tanh,
@@ -35,6 +36,7 @@ class SkillDiscriminator(BNMlp):
             output_size=output_size,
             init_w=init_w,
             output_activation=output_activation,
+            batch_norm=batch_norm
             **kwargs
         )
         self.skill_dim = skill_dim
@@ -63,9 +65,13 @@ class SkillDiscriminator(BNMlp):
     def forward(
             self, input, return_preactivations=False,
     ):
-        h = self.batchnorm_input(input)
+        h = input
+        if self.batch_norm:
+            h = self.batchnorm_input(h)
         for i, fc in enumerate(self.fcs):
-            h = self.batchnorm_hidden[i](self.hidden_activation(fc(h)))
+            h = self.hidden_activation(fc(h))
+            if self.batch_norm:
+                h = self.batchnorm_hidden[i](h)
         mean = self.last_fc(h)
         if self.std is None:
             log_std = self.last_fc_log_std(h)
