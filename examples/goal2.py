@@ -41,25 +41,25 @@ def experiment(variant, args):
         input_size=obs_dim + action_dim + skill_dim,
         output_size=1,
         hidden_sizes=[M, M],
-        batch_norm=variant['batch_norm=True'],
+        batch_norm=variant['batch_norm'],
     )
     qf2 = FlattenBNMlp(
         input_size=obs_dim + action_dim + skill_dim,
         output_size=1,
         hidden_sizes=[M, M],
-        batch_norm=variant['batch_norm=True'],
+        batch_norm=variant['batch_norm'],
     )
     target_qf1 = FlattenBNMlp(
         input_size=obs_dim + action_dim + skill_dim,
         output_size=1,
         hidden_sizes=[M, M],
-        batch_norm=variant['batch_norm=True'],
+        batch_norm=variant['batch_norm'],
     )
     target_qf2 = FlattenBNMlp(
         input_size=obs_dim + action_dim + skill_dim,
         output_size=1,
         hidden_sizes=[M, M],
-        batch_norm=variant['batch_norm=True'],
+        batch_norm=variant['batch_norm'],
     )
     df = SkillDiscriminator(
         input_size=obs_dim + ends_dim,

@@ -5,7 +5,7 @@ from torch.distributions import Normal, Independent, Categorical
 from rlkit.torch.core import eval_np
 
 from rlkit.torch.networks import Mlp
-from rlkit.torch.sac.gcs.networks import BMMlp, MixtureSameFamily
+from rlkit.torch.sac.gcs.networks import BNMlp, MixtureSameFamily
 import numpy as np
 
 LOG_SIG_MAX = 2
@@ -16,7 +16,7 @@ def identity(x):
     return x
 
 
-class SkillDiscriminator(BMMlp):
+class SkillDiscriminator(BNMlp):
     def __init__(
             self,
             hidden_sizes,

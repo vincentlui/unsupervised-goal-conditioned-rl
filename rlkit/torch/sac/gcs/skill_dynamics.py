@@ -5,7 +5,7 @@ from torch.distributions import Normal, Independent
 
 from rlkit.torch.networks import Mlp
 import numpy as np
-from rlkit.torch.sac.gcs.networks import BMMlp
+from rlkit.torch.sac.gcs.networks import BNMlp
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
@@ -15,7 +15,7 @@ def identity(x):
     return x
 
 
-class SkillDynamics(BMMlp):
+class SkillDynamics(BNMlp):
     def __init__(
             self,
             hidden_sizes,
