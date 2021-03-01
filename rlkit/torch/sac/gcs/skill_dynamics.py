@@ -5,6 +5,7 @@ from torch.distributions import Normal, Independent
 
 from rlkit.torch.networks import Mlp
 import numpy as np
+from rlkit.torch.sac.gcs.networks import BMMlp
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
@@ -14,7 +15,7 @@ def identity(x):
     return x
 
 
-class SkillDynamics(Mlp):
+class SkillDynamics(BMMlp):
     def __init__(
             self,
             hidden_sizes,
@@ -22,7 +23,6 @@ class SkillDynamics(Mlp):
             output_size,
             std=None,
             init_w=1e-3,
-            last_activation=torch.tanh,
             **kwargs
     ):
         super().__init__(
@@ -35,9 +35,7 @@ class SkillDynamics(Mlp):
         # self.skill_dim = skill_dim
         self.log_std = None
         self.std = std
-        # self.last_activation = last_activation
-        self.batchnorm_input = BatchNorm1d(input_size)
-        self.batchnorm_output = BatchNorm1d(output_size)
+        self.batchnorm_output = BatchNorm1d(output_size, affine=False)
 
         if std is None:
             last_hidden_size = input_size
@@ -56,8 +54,8 @@ class SkillDynamics(Mlp):
     ):
         h = self.batchnorm_input(input)
         for i, fc in enumerate(self.fcs):
-            h = self.hidden_activation(fc(h))
-        mean = self.batchnorm_output(self.last_fc(h))
+            h = self.batchnorm_hidden[i](self.hidden_activation(fc(h)))
+        mean = self.last_fc(h)
         if self.std is None:
             log_std = self.last_fc_log_std(h)
             log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
@@ -68,3 +66,9 @@ class SkillDynamics(Mlp):
         distribution = Independent(Normal(mean, std), 1)
 
         return distribution
+
+    def log_prob(self, input, target):
+        sf_distribution = self(input)
+        target = self.batchnorm_output(target)
+        log_likelihood = sf_distribution.log_prob(target)
+        return log_likelihood

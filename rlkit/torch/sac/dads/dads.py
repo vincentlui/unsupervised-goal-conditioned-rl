@@ -130,6 +130,7 @@ class DADSTrainer(TorchTrainer):
         next_obs = batch['next_observations']
         skills = batch['skills']
         cur_states = batch['cur_states']
+        next_states = batch['next_states']
         skill_goals = batch['skill_goals']
 
         if self.exclude_obs_ind:
@@ -139,11 +140,11 @@ class DADSTrainer(TorchTrainer):
         """
         DF Loss and Intrinsic Reward
         """
-        sf_input = torch.cat([cur_states, skills], dim=1)
+        sf_input = torch.cat([obs, skills], dim=1)
         sf_distribution = self.skill_dynamics(sf_input)
-        # log_likelihood = sf_distribution.log_prob(skill_goals)
-        rewards = self._calc_reward(cur_states, skill_goals, skills)
-        # df_loss = -log_likelihood.mean()
+        log_likelihood = sf_distribution.log_prob(skill_goals)
+        rewards = self._calc_reward(obs, next_states-cur_states, skills)
+        sf_loss = -log_likelihood.mean()
 
         """
         Policy and Alpha Loss
@@ -193,6 +194,10 @@ class DADSTrainer(TorchTrainer):
         # self.df_optimizer.zero_grad()
         # df_loss.backward()
         # self.df_optimizer.step()
+
+        self.sf_optimizer.zero_grad()
+        sf_loss.backward()
+        self.sf_optimizer.step()
 
         self.qf1_optimizer.zero_grad()
         qf1_loss.backward()

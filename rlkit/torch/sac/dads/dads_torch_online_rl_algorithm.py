@@ -97,10 +97,10 @@ class DADSTorchOnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 gt.stamp('data storing', unique=False)
 
                 self.training_mode(True)
-                for _ in range(self.num_trains_skill_dynamics_per_train_loop):
-                    train_data = self.replay_buffer.random_batch(self.batch_size)
-                    train_data = np_to_pytorch_batch(train_data)
-                    self.trainer.train_skill_dynamics(train_data)
+                # for _ in range(self.num_trains_skill_dynamics_per_train_loop):
+                #     train_data = self.replay_buffer.random_batch(self.batch_size)
+                #     train_data = np_to_pytorch_batch(train_data)
+                #     self.trainer.train_skill_dynamics(train_data)
                 for _ in range(self.num_trains_per_train_loop):
                     train_data = self.replay_buffer.random_batch(
                         self.batch_size)

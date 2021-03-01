@@ -22,6 +22,7 @@ class SkillTanhGaussianPolicy(TanhGaussianPolicy):
             std=None,
             init_w=1e-3,
             skill_dim=10,
+            batch_norm=False,
             **kwargs
     ):
         super().__init__(
@@ -36,6 +37,9 @@ class SkillTanhGaussianPolicy(TanhGaussianPolicy):
         self.skill = random.randint(0, self.skill_dim - 1)
         self.skill_vec = np.zeros(self.skill_dim)
         self.skill_vec[self.skill] += 1
+        self.batch_norm = batch_norm
+        self.batchnorm_input = nn.BatchNorm1d(obs_dim)
+        self.batchnorm_hidden = [nn.BatchNorm1d(h) for h in hidden_sizes]
 
     def get_action(self, obs_np, deterministic=False, return_log_prob=False):
         # generate (skill_dim, ) matrix that stacks one-hot skill vectors
@@ -78,7 +82,8 @@ class SkillTanhGaussianPolicy(TanhGaussianPolicy):
             h = obs
         else:
             h = torch.cat((obs, skill_vec), dim=1)
-
+        if self.batch_norm:
+            h = self.batchnorm_input(h)
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
         mean = self.last_fc(h)

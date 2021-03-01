@@ -5,6 +5,7 @@ from envs.navigation2d.navigation2d import Navigation2d
 from rlkit.envs.mujoco.ant import AntEnv
 from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 
+import torch
 import rlkit.torch.pytorch_util as ptu
 # from rlkit.torch.sac.diayn.diayn_env_replay_buffer import DIAYNEnvReplayBuffer
 from rlkit.torch.sac.gcs.gcs_env_replay_buffer import GCSEnvReplayBuffer
@@ -24,6 +25,7 @@ from rlkit.torch.sac.gcs.gcs_torch_online_rl_algorithm2 import GCSTorchOnlineRLA
 from rlkit.torch.sac.gcs.gcs_path_collector import GCSMdpPathCollector
 from rlkit.torch.sac.gcs.policies import UniformSkillTanhGaussianPolicy
 from rlkit.torch.sac.gcs.skill_dynamics import SkillDynamics
+from rlkit.torch.sac.gcs.networks import FlattenBNMlp
 
 
 def experiment(variant, args):
@@ -35,30 +37,36 @@ def experiment(variant, args):
     ends_dim = args.ends_dim
 
     M = variant['layer_size']
-    qf1 = FlattenMlp(
+    qf1 = FlattenBNMlp(
         input_size=obs_dim + action_dim + skill_dim,
         output_size=1,
         hidden_sizes=[M, M],
+        batch_norm=variant['batch_norm=True'],
     )
-    qf2 = FlattenMlp(
+    qf2 = FlattenBNMlp(
         input_size=obs_dim + action_dim + skill_dim,
         output_size=1,
         hidden_sizes=[M, M],
+        batch_norm=variant['batch_norm=True'],
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = FlattenBNMlp(
         input_size=obs_dim + action_dim + skill_dim,
         output_size=1,
         hidden_sizes=[M, M],
+        batch_norm=variant['batch_norm=True'],
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = FlattenBNMlp(
         input_size=obs_dim + action_dim + skill_dim,
         output_size=1,
         hidden_sizes=[M, M],
+        batch_norm=variant['batch_norm=True'],
     )
     df = SkillDiscriminator(
         input_size=obs_dim + ends_dim,
         skill_dim=skill_dim,
         hidden_sizes=[M, M],
+        output_activation=torch.tanh,
+        num_components=1,
         # std=[0.1, 0.1]
     )
     skill_dynamics = SkillDynamics(
@@ -152,18 +160,19 @@ if __name__ == "__main__":
         version="normal",
         layer_size=32,
         replay_buffer_size=int(1E6),
-        exclude_obs_ind=None,#[0,1],
-        goal_ind=None,#[0,1],
-        skill_horizon=5,
+        exclude_obs_ind=None,#[0],
+        goal_ind=None,#[0],
+        skill_horizon=20,
+        batch_norm=True,
         algorithm_kwargs=dict(
-            num_epochs=1000, #1000
+            num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
             num_trains_per_train_loop=100,
-            num_expl_steps_per_train_loop=2000,
+            num_expl_steps_per_train_loop=1000,
             num_trains_discriminator_per_train_loop=32,
             min_num_steps_before_training=0,
             max_path_length=20,
-            batch_size=256, #256
+            batch_size=128, #256
         )
         ,
         trainer_kwargs=dict(

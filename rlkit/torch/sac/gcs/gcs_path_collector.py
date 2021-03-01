@@ -40,7 +40,7 @@ class GCSMdpPathCollector(MdpPathCollector):
         num_steps_collected = 0
         while num_steps_collected < num_steps:
             max_path_length_this_loop = min(  # Do not go over num_steps
-                max_path_length - self.skill_horizon,
+                max_path_length,
                 num_steps - num_steps_collected,
             )
 
@@ -107,6 +107,7 @@ class GCSMdpPathCollector(MdpPathCollector):
         skill_goals = []
         current_states = []
         next_states = []
+        skill_steps = []
         o = self._env.reset()
         o_policy = o
         if self.exclude_obs_ind:
@@ -118,7 +119,7 @@ class GCSMdpPathCollector(MdpPathCollector):
         if render:
             self._env.render(**render_kwargs)
         while path_length < max_path_length:
-            a, agent_info = self._policy.get_action(o_policy, return_log_prob=True)
+            a, agent_info = self._policy.get_action(o_policy, return_log_prob=False)
             next_o, r, d, env_info = self._env.step(a)
             observations.append(o)
             rewards.append(r)
@@ -126,6 +127,7 @@ class GCSMdpPathCollector(MdpPathCollector):
             actions.append(a[0])
             agent_infos.append(agent_info)
             env_infos.append(env_info)
+            skill_steps.append(skill_step)
             if self.goal_ind:
                 current_states.append(o[self.goal_ind])
                 next_states.append(o[self.goal_ind])
@@ -165,6 +167,9 @@ class GCSMdpPathCollector(MdpPathCollector):
         next_states = np.array(next_states)
         if len(next_states.shape) == 1:
             next_states = np.expand_dims(next_states, 1)
+        # skill_steps = np.array(skill_steps)
+        # if len(skill_steps.shape) == 1:
+        #     skill_steps = np.expand_dims(skill_steps, 1)
         observations = np.array(observations)
         if len(observations.shape) == 1:
             observations = np.expand_dims(observations, 1)
@@ -187,6 +192,7 @@ class GCSMdpPathCollector(MdpPathCollector):
             skill_goals=skill_goals,
             current_states=current_states,
             next_states=next_states,
+            skill_steps=np.array(skill_steps).reshape(-1,1),
         )
 
     def _rollout2(

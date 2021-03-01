@@ -42,12 +42,12 @@ def simulate_policy2(args):
         policy.skill = skill
         path = DIAYNRollout(env, policy.stochastic_policy, skill, max_path_length=args.H, render=True)
         obs = path['observations']
-        plt.plot(obs[:,0], obs[:,1])#, label=tuple(skill.numpy()))
+        plt.plot(obs[:,0], obs[:,1], label=tuple(skill.numpy()))
         action = path['actions']
         # print(action)
 
-    plt.xlim([-10,10])
-    plt.ylim([-2,2])
+    plt.xlim([-4,4])
+    plt.ylim([-4,4])
     # plt.legend()
     plt.show()
 
@@ -91,7 +91,7 @@ def DIAYNRollout(env, agent, skill, max_path_length=np.inf, render=False):
 
     while path_length < max_path_length:
         agent.skill = skill
-        a, agent_info = agent.get_action(o[1:], return_log_prob=True)
+        a, agent_info = agent.get_action(o, return_log_prob=True)
         next_o, r, d, env_info = env.step(a)
         observations.append(o)
         rewards.append(r)

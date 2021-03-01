@@ -12,6 +12,8 @@ import rlkit.torch.pytorch_util as ptu
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.torch.torch_rl_algorithm import TorchTrainer
 from rlkit.envs.env_utils import get_dim
+from typing import Iterable
+
 
 
 class GCSTrainer2(TorchTrainer):
@@ -162,13 +164,13 @@ class GCSTrainer2(TorchTrainer):
         df_log_likelihood = df_distribution.log_prob(skills)
         df_loss = - df_log_likelihood.mean()
 
-        state_diff = next_states-cur_states
-        sf_input = torch.cat([obs, skills], dim=1)
-        sf_distribution = self.skill_dynamics(sf_input)
-        sf_log_likelihood = sf_distribution.log_prob(state_diff)
-        sf_loss = -sf_log_likelihood.mean()
-        rewards = self._calc_dads_reward(obs, state_diff, skills) + df_log_likelihood.view(-1,1)
-        # rewards = log_likelihood.view(-1,1)
+        # state_diff = next_states-cur_states
+        # sf_input = torch.cat([obs, skills], dim=1)
+        # sf_distribution = self.skill_dynamics(sf_input)
+        # sf_log_likelihood = sf_distribution.log_prob(state_diff)
+        # sf_loss = -sf_log_likelihood.mean()
+        # rewards = self._calc_dads_reward(obs, state_diff, skills) + df_log_likelihood.view(-1,1)
+        rewards = df_log_likelihood.view(-1,1)
         # rewards = self._calc_reward(cur_states, skill_goals, skills)
 
         """
@@ -220,9 +222,9 @@ class GCSTrainer2(TorchTrainer):
         df_loss.backward()
         self.df_optimizer.step()
 
-        self.sf_optimizer.zero_grad()
-        sf_loss.backward()
-        self.sf_optimizer.step()
+        # self.sf_optimizer.zero_grad()
+        # sf_loss.backward()
+        # self.sf_optimizer.step()
 
         self.qf1_optimizer.zero_grad()
         qf1_loss.backward()
@@ -262,7 +264,7 @@ class GCSTrainer2(TorchTrainer):
 
             self.eval_statistics['Intrinsic Rewards'] = np.mean(ptu.get_numpy(rewards))
             self.eval_statistics['DF Loss'] = np.mean(ptu.get_numpy(df_loss))
-            self.eval_statistics['SF Loss'] = np.mean(ptu.get_numpy(sf_loss))
+            # self.eval_statistics['SF Loss'] = np.mean(ptu.get_numpy(sf_loss))
             # self.eval_statistics['DF Accuracy'] = np.mean(ptu.get_numpy(df_accuracy))
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
@@ -328,6 +330,9 @@ class GCSTrainer2(TorchTrainer):
             target_qf2=self.qf2,
             df=self.df
         )
+
+    # def networks(self) -> Iterable[nn.Module]:
+    #     return [self.df, self.skill_dynamics, self.qf1, self.qf2, self.policy, self.target_qf2, self.target_qf1]
 
     def _calc_dads_reward(self, cur_states, state_diff, skills):
         num_sample_goal = 20

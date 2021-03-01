@@ -1,10 +1,11 @@
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
-from torch.distributions import Normal, Independent
+from torch.distributions import Normal, Independent, Categorical
 from rlkit.torch.core import eval_np
 
 from rlkit.torch.networks import Mlp
+from rlkit.torch.sac.gcs.networks import BMMlp, MixtureSameFamily
 import numpy as np
 
 LOG_SIG_MAX = 2
@@ -15,37 +16,38 @@ def identity(x):
     return x
 
 
-class SkillDiscriminator(Mlp):
+class SkillDiscriminator(BMMlp):
     def __init__(
             self,
             hidden_sizes,
             input_size,
             skill_dim,
+            num_components=1,
             std=None,
             init_w=1e-3,
-            last_activation=torch.tanh,
+            output_activation=torch.tanh,
             **kwargs
     ):
+        output_size = skill_dim * num_components
         super().__init__(
             hidden_sizes=hidden_sizes,
             input_size=input_size,
-            output_size=skill_dim,
+            output_size=output_size,
             init_w=init_w,
+            output_activation=output_activation,
             **kwargs
         )
         self.skill_dim = skill_dim
         self.log_std = None
         self.std = std
-        self.last_activation = last_activation
-        # self.batchnorm_input = torch.nn.BatchNorm1d(input_size)
-        self.batchnorm_hidden = [torch.nn.BatchNorm1d(h) for h in hidden_sizes]
         # self.batchnorm_output = torch.nn.BatchNorm1d(skill_dim)
+        self.num_components = num_components
 
         if std is None:
             last_hidden_size = input_size
             if len(hidden_sizes) > 0:
                 last_hidden_size = hidden_sizes[-1]
-            self.last_fc_log_std = nn.Linear(last_hidden_size, skill_dim)
+            self.last_fc_log_std = nn.Linear(last_hidden_size, output_size)
             self.last_fc_log_std.weight.data.uniform_(-init_w, init_w)
             self.last_fc_log_std.bias.data.uniform_(-init_w, init_w)
         else:
@@ -53,15 +55,18 @@ class SkillDiscriminator(Mlp):
             self.log_std = torch.log(self.std)
             assert np.all(LOG_SIG_MIN <= self.log_std) and np.all(self.log_std <= LOG_SIG_MAX)
 
+        if num_components > 1:
+            self.last_fc_categorical = nn.Linear(hidden_sizes[-1], num_components)
+            self.last_fc_categorical.weight.data.uniform_(-init_w, init_w)
+            self.last_fc_categorical.bias.data.uniform_(-init_w, init_w)
+
     def forward(
             self, input, return_preactivations=False,
     ):
-        h = input
+        h = self.batchnorm_input(input)
         for i, fc in enumerate(self.fcs):
             h = self.batchnorm_hidden[i](self.hidden_activation(fc(h)))
         mean = self.last_fc(h)
-        if self.last_activation:
-            mean = self.last_activation(mean)
         if self.std is None:
             log_std = self.last_fc_log_std(h)
             log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
@@ -69,7 +74,16 @@ class SkillDiscriminator(Mlp):
         else:
             std = self.std
 
-        distribution = Independent(Normal(mean, std), 1)
+        if self.num_components > 1:
+            mean = mean.view(-1, self.num_components, self.skill_dim)
+            std = std.view(-1, self.num_components, self.skill_dim)
+            categorical_logits = self.last_fc_categorical(h)
+            distribution = MixtureSameFamily(
+                Categorical(logits=categorical_logits),
+                Independent(Normal(mean, std), 1)
+            )
+        else:
+            distribution = Independent(Normal(mean, std), 1)
 
         return distribution
 

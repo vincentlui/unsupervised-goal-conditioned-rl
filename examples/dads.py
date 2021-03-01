@@ -27,7 +27,7 @@ from rlkit.torch.sac.dads.policies import UniformSkillTanhGaussianPolicy
 
 def experiment(variant, args):
     expl_env, eval_env = get_env(str(args.env))
-    obs_dim = expl_env.observation_space.low.size #-2
+    obs_dim = expl_env.observation_space.low.size - (len(variant['exclude_obs_ind']) if variant['exclude_obs_ind'] else 0)
     action_dim = eval_env.action_space.low.size
     skill_dim = args.skill_dim
     # ends_dim = expl_env.observation_space.low.size
@@ -55,7 +55,7 @@ def experiment(variant, args):
         hidden_sizes=[M, M],
     )
     skill_dynamics = SkillDynamics(
-        input_size=ends_dim + skill_dim,
+        input_size=obs_dim + skill_dim,
         output_size=ends_dim,
         hidden_sizes=[M, M],
         std=[0.1, 0.1]
@@ -65,8 +65,8 @@ def experiment(variant, args):
         action_dim=action_dim,
         hidden_sizes=[M, M],
         skill_dim=skill_dim,
-        low=[-1,-1],
-        high=[1,1],
+        low=[-1]*skill_dim,
+        high=[1]*skill_dim,
     )
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = DIAYNMdpPathCollector(
@@ -76,9 +76,9 @@ def experiment(variant, args):
     expl_step_collector = GCSMdpPathCollector(
         expl_env,
         policy,
-        # exclude_obs_ind=[0],
-        # goal_ind=[0,1],
-        skill_horizon=1,
+        exclude_obs_ind=variant['exclude_obs_ind'],
+        goal_ind=variant['goal_ind'],
+        skill_horizon=variant['skill_horizon'],
         # render=True
     )
     replay_buffer = GCSEnvReplayBuffer(
@@ -95,7 +95,7 @@ def experiment(variant, args):
         skill_dynamics=skill_dynamics,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
-        # exclude_obs_ind=[0, 1],
+        exclude_obs_ind=variant['exclude_obs_ind'],
         **variant['trainer_kwargs']
     )
     algorithm = DADSTorchOnlineRLAlgorithm(
@@ -141,16 +141,19 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="DADS",
         version="normal",
-        layer_size=32,
-        replay_buffer_size=int(1E4),
+        layer_size=128,
+        replay_buffer_size=int(1E6),
+        exclude_obs_ind=[0],
+        goal_ind=[0],
+        skill_horizon=10,
         algorithm_kwargs=dict(
-            num_epochs=1000, #1000
+            num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
             num_trains_per_train_loop=100,
             num_expl_steps_per_train_loop=2000,
             num_trains_skill_dynamics_per_train_loop=32,
             min_num_steps_before_training=0,
-            max_path_length=40,
+            max_path_length=200,
             batch_size=128, #256
         )
         ,
