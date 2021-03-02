@@ -2,8 +2,8 @@ import gym
 import argparse
 # from gym.envs.mujoco import HalfCheetahEnv
 from envs.navigation2d.navigation2d import Navigation2d
-# from rlkit.envs.mujoco.ant import AntEnv
-# from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
+from rlkit.envs.mujoco.ant import AntEnv
+from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 
 import torch
 import rlkit.torch.pytorch_util as ptu
@@ -146,10 +146,10 @@ def get_env(name):
         expl_env.set_random_start_state(True)
         eval_env.set_random_start_state(True)
         return NormalizedBoxEnv(expl_env), NormalizedBoxEnv(eval_env)
-    # elif name == 'Ant':
-    #     return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
-    # elif name == 'Half-cheetah':
-    #     return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
+    elif name == 'Ant':
+        return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
+    elif name == 'Half-cheetah':
+        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
 
     return NormalizedBoxEnv(gym.make('name')), NormalizedBoxEnv(gym.make('name'))
 
@@ -170,20 +170,20 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS2",
         version="normal",
-        layer_size=64,
-        replay_buffer_size=int(1E5),
+        layer_size=128,
+        replay_buffer_size=int(1E6),
         exclude_obs_ind=None,#[0,1],
         goal_ind=None,#[0,1],
-        skill_horizon=40,
-        batch_norm=False,
+        skill_horizon=5,
+        batch_norm=True,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
-            num_trains_per_train_loop=100,
+            num_trains_per_train_loop=200,
             num_expl_steps_per_train_loop=2000,
             num_trains_discriminator_per_train_loop=32,
             min_num_steps_before_training=0,
-            max_path_length=40,
+            max_path_length=200,
             batch_size=128, #256
         )
         ,
@@ -192,10 +192,10 @@ if __name__ == "__main__":
             soft_target_tau=5e-3,
             target_update_period=1,
             policy_lr=3E-4,
-            qf_lr=3E-4,
+            qf_lr=3E-3,
             df_lr=3E-4,
             reward_scale=1,
-            use_automatic_entropy_tuning=True,
+            use_automatic_entropy_tuning=False,
         ),
     )
     setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",

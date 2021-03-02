@@ -2,8 +2,8 @@ import gym
 import argparse
 # from gym.envs.mujoco import HalfCheetahEnv
 from envs.navigation2d.navigation2d import Navigation2d
-from rlkit.envs.mujoco.ant import AntEnv
-from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
+# from rlkit.envs.mujoco.ant import AntEnv
+# from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 
 import rlkit.torch.pytorch_util as ptu
 # from rlkit.torch.sac.diayn.diayn_env_replay_buffer import DIAYNEnvReplayBuffer
@@ -117,10 +117,10 @@ def get_env(name):
         # expl_env.set_random_start_state(True)
         # eval_env.set_random_start_state(True)
         return NormalizedBoxEnv(expl_env), NormalizedBoxEnv(eval_env)
-    elif name == 'Ant':
-        return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
-    elif name == 'Half-cheetah':
-        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
+    # elif name == 'Ant':
+    #     return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
+    # elif name == 'Half-cheetah':
+    #     return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
 
     return NormalizedBoxEnv(gym.make('name')), NormalizedBoxEnv(gym.make('name'))
 
@@ -141,7 +141,7 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS",
         version="normal",
-        layer_size=128,
+        layer_size=32,
         replay_buffer_size=int(1E6),
         exclude_obs_ind=None,#[0],
         goal_ind=None,#[0],
@@ -150,7 +150,7 @@ if __name__ == "__main__":
             num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
             num_trains_per_train_loop=100,
-            num_expl_steps_per_train_loop=1000,
+            num_expl_steps_per_train_loop=2000,
             num_trains_discriminator_per_train_loop=0,
             min_num_steps_before_training=0,
             max_path_length=20,

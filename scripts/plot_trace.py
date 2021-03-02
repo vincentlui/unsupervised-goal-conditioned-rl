@@ -31,11 +31,11 @@ def simulate_policy2(args):
     data = torch.load(args.file, map_location='cpu')
     policy = data['evaluation/policy']
     # envs = NormalizedBoxEnv(Navigation2d())
-    # env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
-    env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
+    env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
+    # env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
     figure = plt.figure()
-    skills = torch.Tensor(np.vstack([np.arange(-1, 1.1, 0.2), 0 * np.ones(11)])).transpose(1, 0)
-    # skills = torch.Tensor(np.vstack([0.8 * np.ones(6), 0.8 * np.ones(6)])).transpose(1, 0)
+    # skills = torch.Tensor(np.vstack([np.arange(-1, 1.1, 0.2), 0 * np.ones(11)])).transpose(1, 0)
+    skills = torch.Tensor(np.vstack([-0.3 * np.ones(6), -0.3 * np.ones(6)])).transpose(1, 0)
     # skills = torch.Tensor(np.arange(-0.9, 0.99,0.1)).reshape(-1,1)
     for skill in skills:
         # skill = policy.stochastic_policy.skill_space.sample()
@@ -91,7 +91,7 @@ def DIAYNRollout(env, agent, skill, max_path_length=np.inf, render=False):
 
     while path_length < max_path_length:
         agent.skill = skill
-        a, agent_info = agent.get_action(o, return_log_prob=True)
+        a, agent_info = agent.get_action(o[2:], return_log_prob=True)
         next_o, r, d, env_info = env.step(a)
         observations.append(o)
         rewards.append(r)

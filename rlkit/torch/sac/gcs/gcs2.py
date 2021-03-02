@@ -84,11 +84,11 @@ class GCSTrainer2(TorchTrainer):
             self.policy.parameters(),
             lr=policy_lr,
         )
-        self.qf1_optimizer = optimizer_class(
+        self.qf1_optimizer = optim.RMSprop(
             self.qf1.parameters(),
             lr=qf_lr,
         )
-        self.qf2_optimizer = optimizer_class(
+        self.qf2_optimizer = optim.RMSprop(
             self.qf2.parameters(),
             lr=qf_lr,
         )
@@ -183,7 +183,8 @@ class GCSTrainer2(TorchTrainer):
         # sf_log_likelihood = sf_distribution.log_prob(state_diff)
         # sf_loss = -sf_log_likelihood.mean()
         # rewards = self._calc_dads_reward(obs, state_diff, skills) + df_log_likelihood.view(-1,1)
-        rewards = df_log_likelihood1.view(-1,1) + df_log_likelihood2.view(-1,1)
+        rewards = df_log_likelihood1.view(-1,1) + df_log_likelihood2.view(-1,1) +\
+                  2 *(4* torch.ones_like(df_log_likelihood1.view(-1,1))).log()
         # rewards = self._calc_reward(cur_states, skill_goals, skills)
 
         """
