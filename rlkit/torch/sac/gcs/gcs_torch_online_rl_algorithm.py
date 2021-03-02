@@ -68,6 +68,8 @@ class GCSTorchOnlineRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             self.expl_data_collector.end_epoch(-1)
             gt.stamp('initial exploration', unique=True)
 
+        # self.expl_env.normalize
+
         num_trains_per_expl_step = self.num_trains_per_train_loop
         for epoch in gt.timed_for(
                 range(self._start_epoch, self.num_epochs),

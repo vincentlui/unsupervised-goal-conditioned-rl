@@ -70,15 +70,15 @@ def experiment(variant, args):
         batch_norm=variant['batch_norm'],
         # std=[0.1, 0.1]
     )
-    df2 = SkillDiscriminator(
-        input_size=obs_dim + ends_dim,
-        skill_dim=skill_dim,
-        hidden_sizes=[M, M],
-        output_activation=torch.tanh,
-        num_components=1,
-        batch_norm=variant['batch_norm'],
-        # std=[0.1, 0.1]
-    )
+    # df2 = SkillDiscriminator(
+    #     input_size=obs_dim + ends_dim,
+    #     skill_dim=skill_dim,
+    #     hidden_sizes=[M, M],
+    #     output_activation=torch.tanh,
+    #     num_components=1,
+    #     batch_norm=variant['batch_norm'],
+    #     # std=[0.1, 0.1]
+    # )
     skill_dynamics = SkillDynamics(
         input_size=obs_dim + skill_dim,
         state_dim=ends_dim,
