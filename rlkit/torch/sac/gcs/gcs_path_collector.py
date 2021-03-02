@@ -125,7 +125,7 @@ class GCSMdpPathCollector(MdpPathCollector):
             observations.append(o)
             rewards.append(r)
             terminals.append(d)
-            actions.append(a[0])
+            actions.append(a)
             agent_infos.append(agent_info)
             env_infos.append(env_info)
             skill_steps.append(skill_step)

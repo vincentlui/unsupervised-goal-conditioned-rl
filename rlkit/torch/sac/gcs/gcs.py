@@ -125,12 +125,12 @@ class GCSTrainer(TorchTrainer):
     def train_from_torch(self, batch):
         rewards = batch['rewards']
         terminals = batch['terminals']
-        obs = batch['observations']
+        obs = batch['observations'] -0.5
         actions = batch['actions']
         next_obs = batch['next_observations']
         skills = batch['skills']
         cur_states = batch['cur_states']
-        skill_goals = batch['skill_goals']
+        skill_goals = batch['skill_goals'] -0.5
 
         if self.exclude_obs_ind:
             obs = obs[:, self.obs_ind]
