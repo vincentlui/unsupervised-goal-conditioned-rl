@@ -62,11 +62,20 @@ def experiment(variant, args):
         batch_norm=variant['batch_norm'],
     )
     df = SkillDiscriminator(
-        input_size=obs_dim + ends_dim + 1,
+        input_size=obs_dim + ends_dim,
         skill_dim=skill_dim,
         hidden_sizes=[M, M],
         output_activation=torch.tanh,
         num_components=4,
+        batch_norm=variant['batch_norm'],
+        # std=[0.1, 0.1]
+    )
+    df2 = SkillDiscriminator(
+        input_size=obs_dim + ends_dim,
+        skill_dim=skill_dim,
+        hidden_sizes=[M, M],
+        output_activation=torch.tanh,
+        num_components=1,
         batch_norm=variant['batch_norm'],
         # std=[0.1, 0.1]
     )
@@ -110,6 +119,7 @@ def experiment(variant, args):
         qf1=qf1,
         qf2=qf2,
         df=df,
+        df2=df2,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
         skill_dynamics=skill_dynamics,
@@ -133,13 +143,13 @@ def experiment(variant, args):
 def get_env(name):
     if name == 'test':
         expl_env, eval_env = Navigation2d(), Navigation2d()
-        # expl_env.set_random_start_state(True)
-        # eval_env.set_random_start_state(True)
+        expl_env.set_random_start_state(True)
+        eval_env.set_random_start_state(True)
         return NormalizedBoxEnv(expl_env), NormalizedBoxEnv(eval_env)
     # elif name == 'Ant':
     #     return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
     # elif name == 'Half-cheetah':
-    #     return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
+    #     return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
 
     return NormalizedBoxEnv(gym.make('name')), NormalizedBoxEnv(gym.make('name'))
 
@@ -160,20 +170,20 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS2",
         version="normal",
-        layer_size=32,
-        replay_buffer_size=int(1E6),
-        exclude_obs_ind=None,#[0],
-        goal_ind=None,#[0],
-        skill_horizon=20,
+        layer_size=64,
+        replay_buffer_size=int(1E5),
+        exclude_obs_ind=None,#[0,1],
+        goal_ind=None,#[0,1],
+        skill_horizon=40,
         batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
-            num_trains_per_train_loop=20,
+            num_trains_per_train_loop=100,
             num_expl_steps_per_train_loop=2000,
             num_trains_discriminator_per_train_loop=32,
             min_num_steps_before_training=0,
-            max_path_length=20,
+            max_path_length=40,
             batch_size=128, #256
         )
         ,
