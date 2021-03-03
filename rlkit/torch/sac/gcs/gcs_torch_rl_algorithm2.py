@@ -11,7 +11,7 @@ from rlkit.torch.core import np_to_pytorch_batch
 from rlkit.torch.sac.gcs import gcs_env_replay_buffer
 
 
-class GCSTorchOnlineRLAlgorithm2(BaseRLAlgorithm, metaclass=abc.ABCMeta):
+class GCSTorchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def __init__(
             self,
             trainer,
@@ -20,6 +20,7 @@ class GCSTorchOnlineRLAlgorithm2(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             exploration_data_collector: StepCollector,
             evaluation_data_collector: PathCollector,
             replay_buffer: ReplayBuffer,
+            goal_buffer,
             batch_size,
             max_path_length,
             num_epochs,
@@ -29,6 +30,7 @@ class GCSTorchOnlineRLAlgorithm2(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_trains_discriminator_per_train_loop,
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
+            num_epoch_before_goal_condition_sampling=20,
     ):
         super().__init__(
             trainer,
@@ -39,6 +41,7 @@ class GCSTorchOnlineRLAlgorithm2(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             replay_buffer,
         )
         self.batch_size = batch_size
+        self.goal_buffer = goal_buffer
         self.max_path_length = max_path_length
         self.num_epochs = num_epochs
         self.num_eval_steps_per_epoch = num_eval_steps_per_epoch
@@ -47,6 +50,7 @@ class GCSTorchOnlineRLAlgorithm2(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.num_trains_discriminator_per_train_loop = num_trains_discriminator_per_train_loop
         self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
         self.min_num_steps_before_training = min_num_steps_before_training
+        self.num_epoch_before_goal_condition_sampling = num_epoch_before_goal_condition_sampling
 
         # assert self.num_trains_per_train_loop >= self.num_expl_steps_per_train_loop, \
         #     'Online training presumes num_trains_per_train_loop >= num_expl_steps_per_train_loop'
@@ -57,13 +61,15 @@ class GCSTorchOnlineRLAlgorithm2(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def _train(self):
         self.training_mode(False)
         if self.min_num_steps_before_training > 0:
-            self.expl_data_collector.collect_new_paths(
+            _, skill_goals = self.expl_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.min_num_steps_before_training,
                 discard_incomplete_paths=False,
+                goal_conditioned=False,
             )
             init_expl_paths = self.expl_data_collector.get_epoch_paths()
             self.replay_buffer.add_paths(init_expl_paths)
+            self.goal_buffer.add(skill_goals)
             self.expl_data_collector.end_epoch(-1)
             gt.stamp('initial exploration', unique=True)
 
@@ -72,33 +78,31 @@ class GCSTorchOnlineRLAlgorithm2(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 range(self._start_epoch, self.num_epochs),
                 save_itrs=True,
         ):
-            self.eval_data_collector.collect_new_paths(
-                self.max_path_length,
-                self.num_eval_steps_per_epoch,
-                discard_incomplete_paths=True,
-            )
-            gt.stamp('evaluation sampling')
+            # self.eval_data_collector.collect_new_paths(
+            #     self.max_path_length,
+            #     self.num_eval_steps_per_epoch,
+            #     discard_incomplete_paths=True,
+            # )
+            # gt.stamp('evaluation sampling')
 
             # set policy  for one epoch
-            self.policy.skill_reset()
+            # self.policy.skill_reset()
 
             for _ in range(self.num_train_loops_per_epoch):
-                self.expl_data_collector.collect_new_paths(
+                _, skill_goals = self.expl_data_collector.collect_new_paths(
                     self.max_path_length,
                     self.num_expl_steps_per_train_loop,  # num steps
                     discard_incomplete_paths=False,
+                    goal_condition_training=(epoch>=self.num_epoch_before_goal_condition_sampling),
                 )
                 gt.stamp('exploration sampling', unique=False)
 
                 new_expl_paths = self.expl_data_collector.get_epoch_paths()
                 self.replay_buffer.add_paths(new_expl_paths)
+                # self.goal_buffer.add(skill_goals)
                 gt.stamp('data storing', unique=False)
 
                 self.training_mode(True)
-                for _ in range(self.num_trains_discriminator_per_train_loop):
-                    train_data = self.replay_buffer.random_batch(self.batch_size)
-                    train_data = np_to_pytorch_batch(train_data)
-                    self.trainer.train_dynamics(train_data)
                 for _ in range(self.num_trains_per_train_loop):
                     train_data = self.replay_buffer.random_batch(
                         self.batch_size)

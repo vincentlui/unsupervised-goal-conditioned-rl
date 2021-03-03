@@ -25,9 +25,7 @@ class GCSTrainer2(TorchTrainer):
             qf2,
             target_qf1,
             target_qf2,
-            skill_dynamics,
             df,
-            df2,
 
             discount=0.99,
             reward_scale=1.0,
@@ -56,8 +54,6 @@ class GCSTrainer2(TorchTrainer):
         self.target_qf1 = target_qf1
         self.target_qf2 = target_qf2
         self.df = df
-        self.df2 = df2
-        self.skill_dynamics = skill_dynamics
         self.soft_target_tau = soft_target_tau
         self.target_update_period = target_update_period
 
@@ -84,25 +80,17 @@ class GCSTrainer2(TorchTrainer):
             self.policy.parameters(),
             lr=policy_lr,
         )
-        self.qf1_optimizer = optim.RMSprop(
+        self.qf1_optimizer = optimizer_class(
             self.qf1.parameters(),
             lr=qf_lr,
         )
-        self.qf2_optimizer = optim.RMSprop(
+        self.qf2_optimizer = optimizer_class(
             self.qf2.parameters(),
             lr=qf_lr,
         )
-        self.df_optimizer1 = optimizer_class(
+        self.df_optimizer = optimizer_class(
             self.df.parameters(),
             lr=df_lr,
-        )
-        self.df_optimizer2 = optimizer_class(
-            self.df2.parameters(),
-            lr=df_lr,
-        )
-        self.sf_optimizer = optimizer_class(
-            self.skill_dynamics.parameters(),
-            lr=sf_lr,
         )
 
         self.discount = discount
@@ -116,47 +104,16 @@ class GCSTrainer2(TorchTrainer):
             self.obs_ind = get_indices(obs_len, exclude_obs_ind)
         # self.goal_distribution = Uniform(torch.tensor([-1., -1.]), torch.tensor([1., 1.]))
 
-    def train_dynamics(self, batch):
-        skills = batch['skills']
-        cur_states = batch['cur_states']
-        skill_goals = batch['skill_goals']
-        next_states = batch['next_states']
-
-        # df_input = torch.cat([cur_states, skill_goals], dim=1)
-        # # df_input = cur_states - skill_goals
-        # df_distribution = self.df(df_input)
-        # log_likelihood = df_distribution.log_prob(skills)
-        # df_loss = -log_likelihood.mean()
-
-        sf_input = torch.cat([cur_states, skills], dim=1)
-        # df_input = cur_states - skill_goals
-        # sf_distribution = self.skill_dynamics(sf_input)
-        log_likelihood = self.skill_dynamics.log_prob(sf_input, next_states - cur_states)
-        sf_loss = -log_likelihood.mean()
-
-        self.sf_optimizer.zero_grad()
-        sf_loss.backward()
-        self.sf_optimizer.step()
-
-        # self.df_optimizer.zero_grad()
-        # df_loss.backward()
-        # self.df_optimizer.step()
-
-        # self.eval_statistics['DF Loss'] = np.mean(ptu.get_numpy(df_loss))
-        self.eval_statistics['SF Loss'] = np.mean(ptu.get_numpy(sf_loss))
-
 
     def train_from_torch(self, batch):
-        rewards = batch['rewards']
+        rewards_batch = batch['rewards']
         terminals = batch['terminals']
         obs = batch['observations']
         actions = batch['actions']
         next_obs = batch['next_observations']
         skills = batch['skills']
         cur_states = batch['cur_states']
-        next_states = batch['next_states']
         goal_states = batch['skill_goals']
-        skill_steps = batch['skill_steps']
 
         if self.exclude_obs_ind:
             obs = obs[:, self.obs_ind]
@@ -165,28 +122,12 @@ class GCSTrainer2(TorchTrainer):
         """
         DF Loss and Intrinsic Reward
         """
-        # skill_goals1 = next_states-cur_states
-        # skill_goals2 = goal_states-cur_states
-        # df_input1 = torch.cat([obs, skill_goals1], dim=1)
-        # df_distribution1 = self.df(df_input1)
-        # df_log_likelihood1 = df_distribution1.log_prob(skills)
-        # df_loss1 = - df_log_likelihood1.mean()
-        #
-        # df_input2 = torch.cat([obs, skill_goals2], dim=1)
-        # df_distribution2 = self.df2(df_input2)
-        # df_log_likelihood2 = df_distribution2.log_prob(skills)
-        # df_loss2 = - df_log_likelihood2.mean()
-
-
-        # state_diff = next_states-cur_states
-        # sf_input = torch.cat([obs, skills], dim=1)
-        # sf_distribution = self.skill_dynamics(sf_input)
-        # sf_log_likelihood = sf_distribution.log_prob(state_diff)
-        # sf_loss = -sf_log_likelihood.mean()
-        # rewards = self._calc_dads_reward(obs, state_diff, skills) + df_log_likelihood.view(-1,1)
-        rewards = df_log_likelihood1.view(-1,1) + df_log_likelihood2.view(-1,1) +\
-                  2 *(4* torch.ones_like(df_log_likelihood1.view(-1,1))).log()
-        # rewards = self._calc_reward(cur_states, skill_goals, skills)
+        skill_goals = goal_states-cur_states
+        df_input = torch.cat([obs, skill_goals], dim=1)
+        df_distribution = self.df(df_input)
+        df_log_likelihood = df_distribution.log_prob(skills)
+        df_loss = - df_log_likelihood.mean()
+        rewards = df_log_likelihood.view(-1,1) + rewards_batch
 
         """
         Policy and Alpha Loss
@@ -233,16 +174,9 @@ class GCSTrainer2(TorchTrainer):
         """
         Update networks
         """
-        self.df_optimizer1.zero_grad()
-        df_loss1.backward()
-        self.df_optimizer1.step()
-        self.df_optimizer2.zero_grad()
-        df_loss2.backward()
-        self.df_optimizer2.step()
-
-        # self.sf_optimizer.zero_grad()
-        # sf_loss.backward()
-        # self.sf_optimizer.step()
+        self.df_optimizer.zero_grad()
+        df_loss.backward()
+        self.df_optimizer.step()
 
         self.qf1_optimizer.zero_grad()
         qf1_loss.backward()
@@ -281,10 +215,7 @@ class GCSTrainer2(TorchTrainer):
             policy_loss = (log_pi - q_new_actions).mean()
 
             self.eval_statistics['Intrinsic Rewards'] = np.mean(ptu.get_numpy(rewards))
-            self.eval_statistics['DF Loss1'] = np.mean(ptu.get_numpy(df_loss1))
-            self.eval_statistics['DF Loss2'] = np.mean(ptu.get_numpy(df_loss2))
-            # self.eval_statistics['SF Loss'] = np.mean(ptu.get_numpy(sf_loss))
-            # self.eval_statistics['DF Accuracy'] = np.mean(ptu.get_numpy(df_accuracy))
+            self.eval_statistics['DF Loss1'] = np.mean(ptu.get_numpy(df_loss))
             self.eval_statistics['QF1 Loss'] = np.mean(ptu.get_numpy(qf1_loss))
             self.eval_statistics['QF2 Loss'] = np.mean(ptu.get_numpy(qf2_loss))
             self.eval_statistics['Policy Loss'] = np.mean(ptu.get_numpy(
@@ -298,10 +229,6 @@ class GCSTrainer2(TorchTrainer):
                 'Q2 Predictions',
                 ptu.get_numpy(q2_pred),
             ))
-            # self.eval_statistics.update(create_stats_ordered_dict(
-            #     'D Predictions',
-            #     ptu.get_numpy(pred_z),
-            # ))
             self.eval_statistics.update(create_stats_ordered_dict(
                 'Q Targets',
                 ptu.get_numpy(q_target),

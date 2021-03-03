@@ -129,7 +129,7 @@ def get_env(name):
     elif name == 'Ant':
         return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
     elif name == 'Half-cheetah':
-        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
+        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
 
     return NormalizedBoxEnv(gym.make('name')), NormalizedBoxEnv(gym.make('name'))
 
@@ -152,9 +152,9 @@ if __name__ == "__main__":
         version="normal",
         layer_size=128,
         replay_buffer_size=int(1E6),
-        exclude_obs_ind=None,#[0],
-        goal_ind=None,#[0],
-        skill_horizon=5,
+        exclude_obs_ind=[0],
+        goal_ind=[0],
+        skill_horizon=1,
         batch_norm=True,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000

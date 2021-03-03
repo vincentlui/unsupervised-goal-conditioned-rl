@@ -175,6 +175,9 @@ class UniformSkillTanhGaussianPolicy(SkillTanhGaussianPolicy):
     def skill_reset(self):
         self.skill = self.skill_space.sample().cpu().numpy()
 
+    def set_skill(self, skill):
+        self.skill = skill
+
     def reset(self):
         self.skill_reset()
         super(UniformSkillTanhGaussianPolicy, self).reset()

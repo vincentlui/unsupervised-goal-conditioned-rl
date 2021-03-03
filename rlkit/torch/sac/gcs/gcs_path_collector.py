@@ -2,7 +2,9 @@ from rlkit.samplers.data_collector.path_collector import MdpPathCollector
 from collections import OrderedDict
 from rlkit.samplers.rollout_functions import rollout
 from rlkit.core.eval_util import create_stats_ordered_dict
+from rlkit.torch.core import eval_np
 from rlkit.envs.env_utils import get_dim
+from rlkit.torch import pytorch_util as ptu
 import numpy as np
 
 class GCSMdpPathCollector(MdpPathCollector):
@@ -245,7 +247,7 @@ class GCSMdpPathCollector(MdpPathCollector):
                 observations.append(o)
                 rewards.append(r)
                 terminals.append(d)
-                actions.append(a[0])
+                actions.append()
                 agent_infos.append(agent_info)
                 env_infos.append(env_info)
                 last_next_o = next_o
@@ -305,6 +307,8 @@ class GCSMdpPathCollector2(MdpPathCollector):
     def __init__(self,
                  env,
                  policy,
+                 goal_buffer,
+                 skill_discriminator,
                  max_num_epoch_paths_saved=None,
                  render=False,
                  render_kwargs=None,
@@ -322,7 +326,10 @@ class GCSMdpPathCollector2(MdpPathCollector):
         self.goal_ind = goal_ind
         self.skill_horizon = skill_horizon
         self.exclude_obs_ind = exclude_obs_ind
-        self.mean, self.std = get_stats(skill_horizon)
+        self.goal_condition_training = False
+        self.goal_buffer = goal_buffer
+        self.skill_discriminator = skill_discriminator
+        # self.mean, self.std = get_stats(skill_horizon)
         if exclude_obs_ind:
             obs_len = get_dim(env.observation_space)
             self.obs_ind = get_indices(obs_len, exclude_obs_ind)
@@ -332,6 +339,7 @@ class GCSMdpPathCollector2(MdpPathCollector):
             max_path_length,
             num_steps,
             discard_incomplete_paths,
+            goal_condition_training=False,
     ):
         paths = []
         num_steps_collected = 0
@@ -341,23 +349,20 @@ class GCSMdpPathCollector2(MdpPathCollector):
                 num_steps - num_steps_collected,
             )
 
-            self._policy.skill_reset()
+            if goal_condition_training:
+                goal_conditioned = np.random.choice([True,False, False, False], 1)[0]
+            else:
+                goal_conditioned = False
 
-            path = self._rollout(
+            path, skill_goals = self._rollout(
                 max_path_length=max_path_length_this_loop,
                 skill_horizon=self.skill_horizon,
-                render=self._render
+                render=self._render,
+                goal_conditioned=goal_conditioned
             )
-            # path = self._rollout2(
-            #     max_path_length=max_path_length_this_loop,
-            #     render=self._render
-            # )
-            # path = rollout(
-            #     env=self._env,
-            #     agent=self._policy,
-            #     max_path_length=max_path_length_this_loop,
-            #     render=self._render
-            # )
+            if not goal_conditioned:
+                self.goal_buffer.add(skill_goals)
+
             path_len = len(path['actions'])
             if (
                     path_len != max_path_length
@@ -370,7 +375,7 @@ class GCSMdpPathCollector2(MdpPathCollector):
         self._num_paths_total += len(paths)
         self._num_steps_total += num_steps_collected
         self._epoch_paths.extend(paths)
-        return paths
+        return paths, skill_goals
 
     def _rollout(
             self,
@@ -378,6 +383,7 @@ class GCSMdpPathCollector2(MdpPathCollector):
             max_path_length=np.inf,
             render=False,
             render_kwargs=None,
+            goal_conditioned=False,
     ):
         """
         The following value for the following keys will be a 2D array, with the
@@ -411,20 +417,34 @@ class GCSMdpPathCollector2(MdpPathCollector):
             o_policy = o[self.obs_ind]
         self._policy.reset()
         next_o = None
+        skill = None
         path_length = 0
         skill_step = 0
         if render:
             self._env.render(**render_kwargs)
+        if goal_conditioned:
+            if self.goal_ind:
+                sampled_goal = self.goal_buffer.pick(far_away_from=o[self.goal_ind])
+                sd_input = np.array(np.concatenate((o_policy, sampled_goal[self.goal_ind] - o[self.goal_ind])))
+            else:
+                sampled_goal = self.goal_buffer.pick(far_away_from=o)
+                sd_input = np.array(np.concatenate((o_policy, sampled_goal - o)))
+            skill = ptu.get_numpy(eval_np(self.skill_discriminator, sd_input).mean)
+            self._policy.set_skill(skill)
+        else:
+            self._policy.skill_reset()
+
         while path_length < max_path_length:
             a, agent_info = self._policy.get_action(o_policy, return_log_prob=False)
             next_o, r, d, env_info = self._env.step(a)
             observations.append(o)
-            rewards.append(r)
+            # rewards.append(r)
+            if goal_conditioned:
+                rewards.append(calc_reward(o, sampled_goal))
             terminals.append(d)
-            actions.append(a[0])
+            actions.append(a)
             agent_infos.append(agent_info)
             env_infos.append(env_info)
-            skill_steps.append(normalize(skill_step,self.mean,self.std))
             if self.goal_ind:
                 current_states.append(o[self.goal_ind])
                 next_states.append(o[self.goal_ind])
@@ -443,10 +463,11 @@ class GCSMdpPathCollector2(MdpPathCollector):
                     skill_goals.append(next_o)
 
             if max_path_length == np.inf and d:
-                if self.goal_ind:
-                    skill_goals.append(next_o[self.goal_ind])
-                else:
-                    skill_goals.append(next_o)
+                # if self.goal_ind:
+                #     skill_goals.append(next_o[self.goal_ind])
+                # else:
+                #     skill_goals.append(next_o)
+                raise NotImplementedError
                 break
             o = next_o
             o_policy = o
@@ -477,144 +498,41 @@ class GCSMdpPathCollector2(MdpPathCollector):
                 np.expand_dims(next_o, 0)
             )
         )
-        skill_goals = np.repeat(np.array(skill_goals), skill_horizon, axis=0)[:len(observations)]
+        if goal_conditioned:
+            skill_goals = np.array([sampled_goal])
+            obs_skill_goals = np.repeat(skill_goals, len(observations), axis=0)
+            rewards = np.array(rewards)
+        else:
+            skill_goals = np.array(skill_goals)
+            if len(skill_goals.shape) == 1:
+                skill_goals = np.expand_dims(skill_goals, 1)
+            obs_skill_goals = np.repeat(skill_goals, skill_horizon, axis=0)[:len(observations)]
+            rewards = calc_reward(observations, obs_skill_goals)
         return dict(
             observations=observations,
             actions=actions,
-            rewards=np.array(rewards).reshape(-1, 1),
+            rewards=rewards.reshape(-1,1),
             next_observations=next_observations,
             terminals=np.array(terminals).reshape(-1, 1),
             agent_infos=agent_infos,
             env_infos=env_infos,
-            skill_goals=skill_goals,
+            skill_goals=obs_skill_goals,
             current_states=current_states,
             next_states=next_states,
-            skill_steps=np.array(skill_steps).reshape(-1, 1),
-        )
+        ), skill_goals
 
-    def _rollout2(
-            self,
-            skill_horizon=1,
-            max_path_length=np.inf,
-            render=False,
-            render_kwargs=None,
-    ):
-        """
-        The following value for the following keys will be a 2D array, with the
-        first dimension corresponding to the time dimension.
-         - observations
-         - actions
-         - rewards
-         - next_observations
-         - terminals
 
-        The next two elements will be lists of dictionaries, with the index into
-        the list being the index into the time
-         - agent_infos
-         - env_infos
-        """
-        if render_kwargs is None:
-            render_kwargs = {}
-        observations = []
-        actions = []
-        rewards = []
-        terminals = []
-        agent_infos = []
-        env_infos = []
-        skill_goals = []
-        current_states = []
-        o = self._env.reset()
-        o_policy = o
-        if self.exclude_obs_ind:
-            o_policy = o[self.obs_ind]
-        self._policy.reset()
-        next_o = None
-        last_next_o = None
-        path_length = 0
-        skill_step = 0
-        if render:
-            self._env.render(**render_kwargs)
-        while path_length < max_path_length:
-            a, agent_info = self._policy.get_action(o_policy, return_log_prob=True)
-            next_o, r, d, env_info = self._env.step(a)
-            if path_length <= max_path_length - skill_horizon:
-                observations.append(o)
-                rewards.append(r)
-                terminals.append(d)
-                actions.append(a[0])
-                agent_infos.append(agent_info)
-                env_infos.append(env_info)
-                last_next_o = next_o
-                if self.goal_ind:
-                    current_states.append(o[self.goal_ind])
-                else:
-                    current_states.append(o)
-            path_length += 1
-            if path_length >= skill_horizon:
-                if self.goal_ind:
-                    skill_goals.append(next_o[self.goal_ind])
-                else:
-                    skill_goals.append(next_o)
-
-            if max_path_length == np.inf and d:
-                raise NotImplementedError()
-                break
-            o = next_o
-            o_policy = o
-            if self.exclude_obs_ind:
-                o_policy = o_policy[self.obs_ind]
-            if render:
-                self._env.render(**render_kwargs)
-
-        actions = np.array(actions)
-        if len(actions.shape) == 1:
-            actions = np.expand_dims(actions, 1)
-        current_states = np.array(current_states)
-        if len(actions.shape) == 1:
-            current_states = np.expand_dims(current_states, 1)
-        observations = np.array(observations)
-        if len(observations.shape) == 1:
-            observations = np.expand_dims(observations, 1)
-            next_o = np.array([last_next_o])
-        next_observations = np.vstack(
-            (
-                observations[1:, :],
-                np.expand_dims(last_next_o, 0)
-            )
-        )
-        skill_goals = np.array(skill_goals)
-        if len(skill_goals.shape) == 1:
-            skill_goals = np.expand_dims(skill_goals, 1)
-        return dict(
-            observations=observations,
-            actions=actions,
-            rewards=np.array(rewards).reshape(-1, 1),
-            next_observations=next_observations,
-            terminals=np.array(terminals).reshape(-1, 1),
-            agent_infos=agent_infos,
-            env_infos=env_infos,
-            skill_goals=skill_goals,
-            current_states=current_states
-        )
-
-    # def get_diagnostics(self):
-    #     path_lens = [len(path['actions']) for path in self._epoch_paths]
-    #     stats = OrderedDict([
-    #         ('num steps total', self._num_steps_total),
-    #         ('num paths total', self._num_paths_total),
-    #     ])
-    #     stats.update(create_stats_ordered_dict(
-    #         "path length",
-    #         path_lens,
-    #         always_show_all_stats=True,
-    #     ))
-    #     return stats
 
 
 def get_indices(length, exclude_ind):
     length = np.arange(length)
     exclude_ind = np.array(exclude_ind).reshape(-1,1)
     return np.nonzero(~np.any(length == exclude_ind, axis=0))[0]
+
+def calc_reward(obs, goal):
+    if len(goal.shape) > 1:
+        return -np.sqrt(np.sum(np.square(obs - goal), axis=1))
+    return -np.sqrt(np.sum(np.square(np.subtract(obs, goal))))
 
 def get_stats(horizon):
     h = np.arange(horizon)

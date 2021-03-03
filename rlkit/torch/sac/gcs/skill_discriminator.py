@@ -16,7 +16,7 @@ def identity(x):
     return x
 
 
-class SkillDiscriminator(BNMlp):
+class SkillDiscriminator(Mlp):
     def __init__(
             self,
             hidden_sizes,
@@ -36,7 +36,7 @@ class SkillDiscriminator(BNMlp):
             output_size=output_size,
             init_w=init_w,
             output_activation=output_activation,
-            batch_norm=batch_norm,
+            # batch_norm=batch_norm,
             **kwargs
         )
         self.skill_dim = skill_dim
@@ -66,12 +66,12 @@ class SkillDiscriminator(BNMlp):
             self, input, return_preactivations=False,
     ):
         h = input
-        if self.batch_norm:
-            h = self.batchnorm_input(h)
+        # if self.batch_norm:
+        #     h = self.batchnorm_input(h)
         for i, fc in enumerate(self.fcs):
             h = self.hidden_activation(fc(h))
-            if self.batch_norm:
-                h = self.batchnorm_hidden[i](h)
+            # if self.batch_norm:
+            #     h = self.batchnorm_hidden[i](h)
         mean = self.last_fc(h)
         if self.std is None:
             log_std = self.last_fc_log_std(h)

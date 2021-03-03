@@ -1,7 +1,7 @@
 import gym
 import argparse
 # from gym.envs.mujoco import HalfCheetahEnv
-from envs.navigation2d.navigation2d import Navigation2d
+from rlkit.envs.navigation2d.navigation2d import Navigation2d
 from rlkit.envs.mujoco.ant import AntEnv
 from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 
@@ -21,11 +21,12 @@ from rlkit.torch.networks import FlattenMlp
 from rlkit.torch.sac.diayn.diayn_torch_online_rl_algorithm import DIAYNTorchOnlineRLAlgorithm
 from rlkit.torch.sac.gcs.skill_discriminator import SkillDiscriminator
 from rlkit.torch.sac.gcs.gcs_torch_online_rl_algorithm import GCSTorchOnlineRLAlgorithm
-from rlkit.torch.sac.gcs.gcs_torch_online_rl_algorithm2 import GCSTorchOnlineRLAlgorithm2
+from rlkit.torch.sac.gcs.gcs_torch_rl_algorithm2 import GCSTorchRLAlgorithm
 from rlkit.torch.sac.gcs.gcs_path_collector import GCSMdpPathCollector, GCSMdpPathCollector2
 from rlkit.torch.sac.gcs.policies import UniformSkillTanhGaussianPolicy
 from rlkit.torch.sac.gcs.skill_dynamics import SkillDynamics
 from rlkit.torch.sac.gcs.networks import FlattenBNMlp
+from rlkit.torch.sac.gcs.gcs_goal_buffer import GCSGoalBuffer
 
 
 def experiment(variant, args):
@@ -66,7 +67,7 @@ def experiment(variant, args):
         skill_dim=skill_dim,
         hidden_sizes=[M, M],
         output_activation=torch.tanh,
-        num_components=4,
+        num_components=1,
         batch_norm=variant['batch_norm'],
         # std=[0.1, 0.1]
     )
@@ -79,12 +80,16 @@ def experiment(variant, args):
     #     batch_norm=variant['batch_norm'],
     #     # std=[0.1, 0.1]
     # )
-    skill_dynamics = SkillDynamics(
-        input_size=obs_dim + skill_dim,
-        state_dim=ends_dim,
-        hidden_sizes=[M, M],
-        num_components=4,
-        # std=[0.1, 0.1]
+    # skill_dynamics = SkillDynamics(
+    #     input_size=obs_dim + skill_dim,
+    #     state_dim=ends_dim,
+    #     hidden_sizes=[M, M],
+    #     num_components=4,
+    #     # std=[0.1, 0.1]
+    # )
+    goal_buffer = GCSGoalBuffer(
+        variant['goal_buffer_size'],
+        goal_dim=ends_dim,
     )
     policy = UniformSkillTanhGaussianPolicy(
         obs_dim=obs_dim + skill_dim,
@@ -102,6 +107,8 @@ def experiment(variant, args):
     expl_step_collector = GCSMdpPathCollector2(
         expl_env,
         policy,
+        goal_buffer,
+        skill_discriminator=df,
         exclude_obs_ind=variant['exclude_obs_ind'],
         goal_ind=variant['goal_ind'],
         skill_horizon=variant['skill_horizon'],
@@ -119,21 +126,19 @@ def experiment(variant, args):
         qf1=qf1,
         qf2=qf2,
         df=df,
-        df2=df2,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
-        skill_dynamics=skill_dynamics,
         exclude_obs_ind=variant['exclude_obs_ind'],
         **variant['trainer_kwargs']
     )
-    algorithm = GCSTorchOnlineRLAlgorithm(
+    algorithm = GCSTorchRLAlgorithm(
         trainer=trainer,
         exploration_env=expl_env,
         evaluation_env=eval_env,
         exploration_data_collector=expl_step_collector,
         evaluation_data_collector=eval_path_collector,
         replay_buffer=replay_buffer,
-        exclude_obs_ind=variant['exclude_obs_ind'],
+        goal_buffer=goal_buffer,
         **variant['algorithm_kwargs']
     )
     algorithm.to(ptu.device)
@@ -143,13 +148,13 @@ def experiment(variant, args):
 def get_env(name):
     if name == 'test':
         expl_env, eval_env = Navigation2d(), Navigation2d()
-        expl_env.set_random_start_state(True)
-        eval_env.set_random_start_state(True)
+        # expl_env.set_random_start_state(True)
+        # eval_env.set_random_start_state(True)
         return NormalizedBoxEnv(expl_env), NormalizedBoxEnv(eval_env)
     elif name == 'Ant':
         return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
     elif name == 'Half-cheetah':
-        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
+        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
 
     return NormalizedBoxEnv(gym.make('name')), NormalizedBoxEnv(gym.make('name'))
 
@@ -172,16 +177,17 @@ if __name__ == "__main__":
         version="normal",
         layer_size=128,
         replay_buffer_size=int(1E6),
-        exclude_obs_ind=None,#[0,1],
-        goal_ind=None,#[0,1],
-        skill_horizon=5,
-        batch_norm=True,
+        goal_buffer_size=int(1E4),
+        exclude_obs_ind=None,#[0],
+        goal_ind=None,#[0],
+        skill_horizon=200,
+        batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
-            num_trains_per_train_loop=200,
+            num_trains_per_train_loop=100,
             num_expl_steps_per_train_loop=2000,
-            num_trains_discriminator_per_train_loop=32,
+            num_trains_discriminator_per_train_loop=0,
             min_num_steps_before_training=0,
             max_path_length=200,
             batch_size=128, #256
@@ -192,13 +198,13 @@ if __name__ == "__main__":
             soft_target_tau=5e-3,
             target_update_period=1,
             policy_lr=3E-4,
-            qf_lr=3E-3,
+            qf_lr=3E-4,
             df_lr=3E-4,
             reward_scale=1,
             use_automatic_entropy_tuning=False,
         ),
     )
-    setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
+    setup_logger('GCS_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
             snapshot_gap=100,)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant, args)

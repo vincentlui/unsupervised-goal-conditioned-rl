@@ -21,7 +21,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
         self._next_state = np.zeros((max_replay_buffer_size, goal_dim))
         self._skill_goal = np.zeros((max_replay_buffer_size, goal_dim))
         self._log_prob = np.zeros((max_replay_buffer_size, 1))
-        self._skill_steps = np.zeros((max_replay_buffer_size, 1))
+        # self._skill_steps = np.zeros((max_replay_buffer_size, 1))
 
         super().__init__(
             max_replay_buffer_size=max_replay_buffer_size,
@@ -53,7 +53,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
                 skill_goal,
                 current_state,
                 next_state,
-                skill_step,
+                # skill_step,
         ) in enumerate(zip(
             path["observations"],
             path["actions"],
@@ -65,12 +65,12 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
             path["skill_goals"],
             path["current_states"],
             path["next_states"],
-            path["skill_steps"]
+            # path["skill_steps"]
         )):
             agent_info['cur_state'] = current_state
             agent_info['next_state'] = next_state
             agent_info['skill_goal'] = skill_goal
-            agent_info['skill_step'] = skill_step
+            # agent_info['skill_step'] = skill_step
             self.add_sample(
                 observation=obs,
                 action=action,
@@ -88,7 +88,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
         self._cur_state[self._top] = agent_info['cur_state']
         self._next_state[self._top] = agent_info["next_state"]
         self._skill_goal[self._top] = agent_info["skill_goal"]
-        self._skill_steps[self._top] = agent_info["skill_step"]
+        # self._skill_steps[self._top] = agent_info["skill_step"]
         # self._log_prob[self._top] = agent_info["log_prob"]
 
         return super().add_sample(
@@ -112,7 +112,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
             cur_states=self._cur_state[indices],
             next_states=self._next_state[indices],
             skill_goals=self._skill_goal[indices],
-            skill_steps = self._skill_steps[indices],
+            # skill_steps = self._skill_steps[indices],
             # log_probs=self._log_prob[indices]
         )
         for key in self._env_info_keys:

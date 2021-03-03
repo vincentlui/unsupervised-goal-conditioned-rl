@@ -139,7 +139,7 @@ class GCSTrainer(TorchTrainer):
         """
         DF Loss and Intrinsic Reward
         """
-        df_input = torch.cat([obs, skill_goals], dim=1)
+        df_input = torch.cat([obs, skill_goals-cur_states], dim=1)
         # df_input = cur_states - skill_goals
         df_distribution = self.df(df_input)
         log_likelihood = df_distribution.log_prob(skills)
