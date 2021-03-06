@@ -21,7 +21,7 @@ from rlkit.torch.networks import FlattenMlp
 from rlkit.torch.sac.diayn.diayn_torch_online_rl_algorithm import DIAYNTorchOnlineRLAlgorithm
 from rlkit.torch.sac.gcs.skill_discriminator import SkillDiscriminator
 from rlkit.torch.sac.gcs.gcs_torch_online_rl_algorithm import GCSTorchOnlineRLAlgorithm
-from rlkit.torch.sac.gcs.gcs_torch_rl_algorithm2 import GCSTorchRLAlgorithm
+from rlkit.torch.sac.gcs.gcs_torch_rl_algorithm import GCSTorchRLAlgorithm
 from rlkit.torch.sac.gcs.gcs_path_collector import GCSMdpPathCollector, GCSMdpPathCollector2
 from rlkit.torch.sac.gcs.policies import UniformSkillTanhGaussianPolicy
 from rlkit.torch.sac.gcs.skill_dynamics import SkillDynamics

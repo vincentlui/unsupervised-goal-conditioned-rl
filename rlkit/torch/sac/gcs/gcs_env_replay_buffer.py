@@ -89,7 +89,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
         self._next_state[self._top] = agent_info["next_state"]
         self._skill_goal[self._top] = agent_info["skill_goal"]
         # self._skill_steps[self._top] = agent_info["skill_step"]
-        # self._log_prob[self._top] = agent_info["log_prob"]
+        self._log_prob[self._top] = agent_info["log_prob"]
 
         return super().add_sample(
             observation=observation,
@@ -113,7 +113,7 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
             next_states=self._next_state[indices],
             skill_goals=self._skill_goal[indices],
             # skill_steps = self._skill_steps[indices],
-            # log_probs=self._log_prob[indices]
+            log_probs=self._log_prob[indices]
         )
         for key in self._env_info_keys:
             assert key not in batch.keys()

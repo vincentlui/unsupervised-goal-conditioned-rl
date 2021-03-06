@@ -20,7 +20,6 @@ from rlkit.torch.networks import FlattenMlp
 from rlkit.torch.sac.diayn.diayn_torch_online_rl_algorithm import DIAYNTorchOnlineRLAlgorithm
 from rlkit.torch.sac.gcs.skill_discriminator import SkillDiscriminator
 from rlkit.torch.sac.gcs.gcs_torch_online_rl_algorithm import GCSTorchOnlineRLAlgorithm
-from rlkit.torch.sac.gcs.gcs_torch_online_rl_algorithm2 import GCSTorchOnlineRLAlgorithm2
 from rlkit.torch.sac.gcs.gcs_path_collector import GCSMdpPathCollector
 from rlkit.torch.sac.gcs.policies import UniformSkillTanhGaussianPolicy
 from rlkit.torch.sac.gcs.networks import FlattenBNMlp
@@ -61,11 +60,11 @@ def experiment(variant, args):
         batch_norm=variant['batch_norm'],
     )
     df = SkillDiscriminator(
-        input_size=obs_dim + ends_dim,
+        input_size=ends_dim + ends_dim,
         skill_dim=skill_dim,
         hidden_sizes=[M, M],
         output_activation=torch.tanh,
-        num_components=4,
+        num_components=1,
         batch_norm=variant['batch_norm'],
         # std=[0.1, 0.1]
     )
@@ -155,11 +154,11 @@ if __name__ == "__main__":
         exclude_obs_ind=[0],
         goal_ind=[0],
         skill_horizon=1,
-        batch_norm=True,
+        batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
-            num_trains_per_train_loop=200,
+            num_trains_per_train_loop=100,
             num_expl_steps_per_train_loop=2000,
             num_trains_discriminator_per_train_loop=0,
             min_num_steps_before_training=0,
@@ -175,7 +174,7 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             df_lr=3E-4,
             reward_scale=1,
-            use_automatic_entropy_tuning=True,
+            use_automatic_entropy_tuning=False,
         ),
     )
     setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",

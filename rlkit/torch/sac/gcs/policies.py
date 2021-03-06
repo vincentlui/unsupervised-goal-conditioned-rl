@@ -8,7 +8,7 @@ import random
 from rlkit.torch.sac.policies import TanhGaussianPolicy
 from rlkit.policies.base import Policy
 from rlkit.torch.core import eval_np
-from rlkit.torch.distributions import TanhNormal
+from rlkit.torch.distributions import TanhNormal, TanhMultivariateNormal
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
@@ -164,9 +164,9 @@ class UniformSkillTanhGaussianPolicy(SkillTanhGaussianPolicy):
         # generate (skill_dim, ) matrix that stacks one-hot skill vectors
         # online reinforcement learning
         obs_np = np.concatenate((obs_np, self.skill), axis=0)
-        action, _, _, log_prob, *_ = self.get_actions(obs_np[None], deterministic=deterministic, return_log_prob=return_log_prob)
+        action, _, _, log_prob, _,_,_,pre_tanh_value = self.get_actions(obs_np[None], deterministic=deterministic, return_log_prob=return_log_prob)
         if return_log_prob:
-            return action[0,:], {"skill": self.skill, "log_prob": log_prob[0]}#, "pre_tanh_value": pre_tanh_value[0,:]}
+            return action[0,:], {"skill": self.skill, "log_prob": log_prob[0], "pre_tanh_value": pre_tanh_value[0,:]}
         return action[0,:], {"skill": self.skill}
 
     def get_actions(self, obs_np, deterministic=False, return_log_prob=False):
@@ -181,6 +181,13 @@ class UniformSkillTanhGaussianPolicy(SkillTanhGaussianPolicy):
     def reset(self):
         self.skill_reset()
         super(UniformSkillTanhGaussianPolicy, self).reset()
+
+    def log_prob(self, obs, skill, a):
+        obs_np = torch.cat([obs, skill], dim=1)
+        _, mean, _, _, _, std, _, pre_tanh_value = self(obs_np, deterministic=False)
+        distribution = TanhNormal(mean, std)
+        log_prob = distribution.log_prob(a, pre_tanh_value=pre_tanh_value).sum(dim=1, keepdim=True)
+        return log_prob
 
 
 class MakeDeterministic(Policy):

@@ -34,9 +34,10 @@ def simulate_policy2(args):
     # env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
     env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
     figure = plt.figure()
-    skills = torch.Tensor(np.vstack([np.arange(-1, 1.1, 0.2), 0 * np.ones(11)])).transpose(1, 0)
+    skills = torch.Tensor(np.vstack([np.arange(-0.9, 0.91, 0.2), -0.5 * np.ones(10)])).transpose(1, 0)
+    skills = torch.Tensor(np.vstack([-0.5 * np.ones(10), np.arange(-0.9, 0.91, 0.2)])).transpose(1, 0)
     # skills = torch.Tensor(np.vstack([-0.3 * np.ones(6), -0.3 * np.ones(6)])).transpose(1, 0)
-    # skills = torch.Tensor(np.arange(-0.9, 0.99,0.1)).reshape(-1,1)
+    skills = torch.Tensor(np.arange(-0.9, 0.99,0.1)).reshape(-1,1)
     for skill in skills:
         # skill = policy.stochastic_policy.skill_space.sample()
         policy.skill = skill
@@ -49,7 +50,7 @@ def simulate_policy2(args):
     plt.xlim([-4,4])
     plt.ylim([-4,4])
     # plt.legend()
-    plt.show()
+    # plt.show()
 
 def DIAYNRollout(env, agent, skill, max_path_length=np.inf, render=False):
     """

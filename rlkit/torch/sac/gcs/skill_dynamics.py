@@ -24,6 +24,7 @@ class SkillDynamics(BNMlp):
             num_components=1,
             std=None,
             init_w=1e-3,
+            batch_norm=False,
             **kwargs
     ):
         output_size = state_dim * num_components
@@ -32,13 +33,15 @@ class SkillDynamics(BNMlp):
             input_size=input_size,
             output_size=output_size,
             init_w=init_w,
+            batch_norm=batch_norm,
             **kwargs
         )
         # self.skill_dim = skill_dim
         self.state_dim = state_dim
         self.log_std = None
         self.std = std
-        self.batchnorm_output = BatchNorm1d(output_size, affine=False)
+        self.batch_norm = batch_norm
+        self.batchnorm_output = BatchNorm1d(state_dim, affine=False)
         self.num_components = num_components
 
         if std is None:
@@ -61,9 +64,13 @@ class SkillDynamics(BNMlp):
     def forward(
             self, input, return_preactivations=False,
     ):
-        h = self.batchnorm_input(input)
+        h = input
+        if self.batch_norm:
+            h = self.batchnorm_input(h)
         for i, fc in enumerate(self.fcs):
-            h = self.batchnorm_hidden[i](self.hidden_activation(fc(h)))
+            h = self.hidden_activation(fc(h))
+            if self.batch_norm:
+                h = self.batchnorm_hidden[i](h)
         mean = self.last_fc(h)
         if self.std is None:
             log_std = self.last_fc_log_std(h)
@@ -87,6 +94,7 @@ class SkillDynamics(BNMlp):
 
     def log_prob(self, input, target):
         sf_distribution = self(input)
-        target = self.batchnorm_output(target)
+        if self.batch_norm:
+            target = self.batchnorm_output(target)
         log_likelihood = sf_distribution.log_prob(target)
         return log_likelihood

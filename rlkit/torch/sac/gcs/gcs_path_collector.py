@@ -1,5 +1,5 @@
 from rlkit.samplers.data_collector.path_collector import MdpPathCollector
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from rlkit.samplers.rollout_functions import rollout
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.torch.core import eval_np
@@ -142,7 +142,7 @@ class GCSMdpPathCollector(MdpPathCollector):
 
             if skill_step >= skill_horizon:
                 skill_step = 0
-                # self._policy.skill_reset()
+                self._policy.skill_reset()
                 if self.goal_ind:
                     skill_goals.append(next_o[self.goal_ind])
                 else:
@@ -350,7 +350,7 @@ class GCSMdpPathCollector2(MdpPathCollector):
             )
 
             if goal_condition_training:
-                goal_conditioned = np.random.choice([True,False, False, False], 1)[0]
+                goal_conditioned = np.random.choice([True,False], 1)[0]
             else:
                 goal_conditioned = False
 
@@ -521,8 +521,224 @@ class GCSMdpPathCollector2(MdpPathCollector):
             next_states=next_states,
         ), skill_goals
 
+class GCSMdpPathCollector3(MdpPathCollector):
+    def __init__(self,
+                env,
+                policy,
+                max_num_epoch_paths_saved=None,
+                render=False,
+                render_kwargs=None,
+                exclude_obs_ind=None,
+                goal_ind=None,
+                skill_horizon=1):
 
+        super().__init__(
+            env,
+            policy,
+            max_num_epoch_paths_saved,
+            render,
+            render_kwargs,
+        )
+        self.goal_ind = goal_ind
+        self.skill_horizon = skill_horizon
+        self.exclude_obs_ind = exclude_obs_ind
+        # self.mean, self.std = get_stats(skill_horizon)
+        self._goal_paths = deque(maxlen=self._max_num_epoch_paths_saved)
+        if exclude_obs_ind:
+            obs_len = get_dim(env.observation_space)
+            self.obs_ind = get_indices(obs_len, exclude_obs_ind)
 
+    def collect_new_paths(
+            self,
+            max_path_length,
+            num_steps,
+            discard_incomplete_paths,
+    ):
+        paths = []
+        list_goal_path = []
+        num_steps_collected = 0
+        while num_steps_collected < num_steps:
+            max_path_length_this_loop = min(  # Do not go over num_steps
+                max_path_length,
+                num_steps - num_steps_collected,
+            )
+
+            self._policy.skill_reset()
+
+            path, goal_path = self._rollout(
+                max_path_length=max_path_length_this_loop,
+                skill_horizon=self.skill_horizon,
+                render=self._render
+            )
+            # path = self._rollout2(
+            #     max_path_length=max_path_length_this_loop,
+            #     render=self._render
+            # )
+            # path = rollout(
+            #     env=self._env,
+            #     agent=self._policy,
+            #     max_path_length=max_path_length_this_loop,
+            #     render=self._render
+            # )
+            path_len = len(path['actions'])
+            if (
+                    path_len != max_path_length
+                    and not path['terminals'][-1]
+                    and discard_incomplete_paths
+            ):
+                break
+            num_steps_collected += path_len
+            paths.append(path)
+            list_goal_path.append(goal_path)
+        self._num_paths_total += len(paths)
+        self._num_steps_total += num_steps_collected
+        self._epoch_paths.extend(paths)
+        self._goal_paths.extend(list_goal_path)
+        return paths
+
+    def _rollout(
+            self,
+            skill_horizon=1,
+            max_path_length=np.inf,
+            render=False,
+            render_kwargs=None,
+    ):
+        """
+        The following value for the following keys will be a 2D array, with the
+        first dimension corresponding to the time dimension.
+         - observations
+         - actions
+         - rewards
+         - next_observations
+         - terminals
+
+        The next two elements will be lists of dictionaries, with the index into
+        the list being the index into the time
+         - agent_infos
+         - env_infos
+        """
+        if render_kwargs is None:
+            render_kwargs = {}
+        observations = []
+        actions = []
+        rewards = []
+        terminals = []
+        agent_infos = []
+        env_infos = []
+        skill_goals = []
+        current_states = []
+        next_states = []
+        skill_start_states = []
+        skills = []
+        o = self._env.reset()
+        o_policy = o
+        if self.exclude_obs_ind:
+            o_policy = o[self.obs_ind]
+        self._policy.reset()
+        skill_start_states.append(o)
+        skills.append(self._policy.skill)
+        next_o = None
+        path_length = 0
+        skill_step = 0
+        if render:
+            self._env.render(**render_kwargs)
+        while path_length < max_path_length:
+            a, agent_info = self._policy.get_action(o_policy, return_log_prob=True)
+            next_o, r, d, env_info = self._env.step(a)
+            observations.append(o)
+            rewards.append(r)
+            terminals.append(d)
+            actions.append(a)
+            agent_infos.append(agent_info)
+            env_infos.append(env_info)
+            if self.goal_ind:
+                current_states.append(o[self.goal_ind])
+                next_states.append(next_o[self.goal_ind])
+            else:
+                current_states.append(o)
+                next_states.append(next_o)
+            path_length += 1
+            skill_step += 1
+
+            if skill_step >= skill_horizon:
+                skill_step = 0
+                self._policy.skill_reset()
+                skill_start_states.append(next_o)
+                skills.append(self._policy.skill)
+                if self.goal_ind:
+                    skill_goals.append(next_o[self.goal_ind])
+                else:
+                    skill_goals.append(next_o)
+
+            if max_path_length == np.inf and d:
+                if self.goal_ind:
+                    skill_goals.append(next_o[self.goal_ind])
+                else:
+                    skill_goals.append(next_o)
+                break
+            o = next_o
+            o_policy = o
+            if self.exclude_obs_ind:
+                o_policy = o_policy[self.obs_ind]
+            if render:
+                self._env.render(**render_kwargs)
+
+        actions = np.array(actions)
+        if len(actions.shape) == 1:
+            actions = np.expand_dims(actions, 1)
+        current_states = np.array(current_states)
+        if len(current_states.shape) == 1:
+            current_states = np.expand_dims(current_states, 1)
+        next_states = np.array(next_states)
+        if len(next_states.shape) == 1:
+            next_states = np.expand_dims(next_states, 1)
+        # skill_steps = np.array(skill_steps)
+        # if len(skill_steps.shape) == 1:
+        #     skill_steps = np.expand_dims(skill_steps, 1)
+        observations = np.array(observations)
+        if len(observations.shape) == 1:
+            observations = np.expand_dims(observations, 1)
+            next_o = np.array([next_o])
+        next_observations = np.vstack(
+            (
+                observations[1:, :],
+                np.expand_dims(next_o, 0)
+            )
+        )
+        skill_goals = np.repeat(np.array(skill_goals), skill_horizon, axis=0)[:len(observations)]
+
+        # For discriminator
+        skill_start_states = np.array(skill_start_states)
+        if len(skill_start_states.shape) == 1:
+            skill_start_states = np.expand_dims(skill_start_states, 1)
+        final_state = next_observations[None, -1].repeat(len(skill_start_states), axis=0)
+        skills = np.array(skills)
+        if len(skills.shape) == 1:
+            skills = np.expand_dims(skills, 1)
+
+        return dict(
+            observations=observations,
+            actions=actions,
+            rewards=np.array(rewards).reshape(-1, 1),
+            next_observations=next_observations,
+            terminals=np.array(terminals).reshape(-1, 1),
+            agent_infos=agent_infos,
+            env_infos=env_infos,
+            skill_goals=skill_goals,
+            current_states=current_states,
+            next_states=next_states,
+        ), dict(
+            start_states=skill_start_states,
+            final_states=final_state,
+            skills=skills,
+        )
+
+    def end_epoch(self, epoch):
+        self._start_goal_pairs_np = None
+        super().end_epoch(epoch)
+
+    def get_epoch_goal_paths(self):
+        return self._goal_paths
 
 def get_indices(length, exclude_ind):
     length = np.arange(length)
