@@ -63,7 +63,7 @@ class GCSSGoalPathBuffer:
     def add_samples(self, samples):
         for sample in samples:
             start_states = sample['start_states']
-            goal_states = sample['final_states']
+            goal_states = sample['goal_states']
             skills = sample['skills']
             num_samples = len(start_states)
             assert num_samples <= self.max_buffer_size, 'Number of samples cannot exceed max buffer size.'

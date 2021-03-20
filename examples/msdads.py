@@ -1,91 +1,113 @@
 import gym
 import argparse
-#from gym.envs.mujoco import HalfCheetahEnv
+# from gym.envs.mujoco import HalfCheetahEnv
+from rlkit.envs.navigation2d.navigation2d import Navigation2d
+from rlkit.envs.mujoco.ant import AntEnv
+from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 
+import torch
 import rlkit.torch.pytorch_util as ptu
-from rlkit.torch.sac.diayn.diayn_env_replay_buffer import DIAYNEnvReplayBuffer
+from rlkit.torch.sac.msdads.msdads_env_replay_buffer import MSDADSEnvReplayBuffer
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.diayn.diayn_path_collector import DIAYNMdpPathCollector
 from rlkit.samplers.data_collector.step_collector import MdpStepCollector
 from rlkit.torch.sac.diayn.policies import SkillTanhGaussianPolicy, MakeDeterministic
-from rlkit.torch.sac.diayn.diayn import DIAYNTrainer
 from rlkit.torch.networks import FlattenMlp
-from rlkit.torch.sac.diayn.diayn_torch_online_rl_algorithm import DIAYNTorchOnlineRLAlgorithm
-from rlkit.envs.navigation2d.navigation2d import Navigation2d
-from rlkit.envs.mujoco.ant import AntEnv
-from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
-from rlkit.torch.sac.diayn.diayn_cont_torch_online_rl_algorithm import DIAYNContTorchOnlineRLAlgorithm
+from rlkit.torch.sac.msdads.msdads_torch_rl_algorithm import MSDADSTorchRLAlgorithm
+from rlkit.torch.sac.msdads.msdads import MSDADSTrainer
+from rlkit.torch.sac.gcs.gcs_path_collector import GCSMdpPathCollector, GCSMdpPathCollector2, GCSMdpPathCollector3
+from rlkit.torch.sac.gcs.policies import UniformSkillTanhGaussianPolicy
+from rlkit.torch.sac.gcs.networks import FlattenBNMlp
+from rlkit.torch.sac.msdads.skill_dynamics import SkillDynamics
 
 
 def experiment(variant, args):
     expl_env, eval_env = get_env(str(args.env))
-
-    # expl_env = NormalizedBoxEnv(gym.make(str(args.env)))
-    # eval_env = NormalizedBoxEnv(gym.make(str(args.env)))
-    # expl_env = NormalizedBoxEnv(HalfCheetahEnv())
-    # eval_env = NormalizedBoxEnv(HalfCheetahEnv())
-    obs_dim = expl_env.observation_space.low.size
+    obs_dim = expl_env.observation_space.low.size - (len(variant['exclude_obs_ind']) if variant['exclude_obs_ind'] else 0)
     action_dim = eval_env.action_space.low.size
     skill_dim = args.skill_dim
+    # ends_dim = expl_env.observation_space.low.size
+    ends_dim = args.ends_dim
 
     M = variant['layer_size']
-    qf1 = FlattenMlp(
+    qf1 = FlattenBNMlp(
         input_size=obs_dim + action_dim + skill_dim,
         output_size=1,
         hidden_sizes=[M, M],
+        batch_norm=variant['batch_norm'],
     )
-    qf2 = FlattenMlp(
+    qf2 = FlattenBNMlp(
         input_size=obs_dim + action_dim + skill_dim,
         output_size=1,
         hidden_sizes=[M, M],
+        batch_norm=variant['batch_norm'],
     )
-    target_qf1 = FlattenMlp(
+    target_qf1 = FlattenBNMlp(
         input_size=obs_dim + action_dim + skill_dim,
         output_size=1,
         hidden_sizes=[M, M],
+        batch_norm=variant['batch_norm'],
     )
-    target_qf2 = FlattenMlp(
+    target_qf2 = FlattenBNMlp(
         input_size=obs_dim + action_dim + skill_dim,
         output_size=1,
         hidden_sizes=[M, M],
+        batch_norm=variant['batch_norm'],
     )
-    df = FlattenMlp(
-        input_size=obs_dim,
-        output_size=skill_dim,
+    skill_dynamics = SkillDynamics(
+        input_size=obs_dim + skill_dim,
+        state_dim=ends_dim,
         hidden_sizes=[M, M],
+        num_components=1,
+        batch_norm=True,#variant['batch_norm'],
+        std=[1.] * ends_dim * 1
     )
-    policy = SkillTanhGaussianPolicy(
+    # goal_buffer = GCSGoalBuffer(
+    #     variant['goal_buffer_size'],
+    #     goal_dim=ends_dim,
+    # )
+    policy = UniformSkillTanhGaussianPolicy(
         obs_dim=obs_dim + skill_dim,
         action_dim=action_dim,
         hidden_sizes=[M, M],
-        skill_dim=skill_dim
+        skill_dim=skill_dim,
+        low=[-1] * skill_dim,
+        high=[1] * skill_dim,
     )
     eval_policy = MakeDeterministic(policy)
     eval_path_collector = DIAYNMdpPathCollector(
         eval_env,
         eval_policy,
     )
-    expl_step_collector = MdpStepCollector(
+    expl_step_collector = GCSMdpPathCollector3(
         expl_env,
         policy,
+        exclude_obs_ind=variant['exclude_obs_ind'],
+        goal_ind=variant['goal_ind'],
+        skill_horizon=variant['skill_horizon'],
+        # render=True
     )
-    replay_buffer = DIAYNEnvReplayBuffer(
+    replay_buffer = MSDADSEnvReplayBuffer(
         variant['replay_buffer_size'],
         expl_env,
         skill_dim,
+        ends_dim,
+        variant['algorithm_kwargs']['max_path_length']
     )
-    trainer = DIAYNTrainer(
+
+    trainer = MSDADSTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,
         qf2=qf2,
-        df=df,
+        skill_dynamics=skill_dynamics,
         target_qf1=target_qf1,
         target_qf2=target_qf2,
+        exclude_obs_ind=variant['exclude_obs_ind'],
         **variant['trainer_kwargs']
     )
-    algorithm = DIAYNTorchOnlineRLAlgorithm(
+    algorithm = MSDADSTorchRLAlgorithm(
         trainer=trainer,
         exploration_env=expl_env,
         evaluation_env=eval_env,
@@ -97,6 +119,7 @@ def experiment(variant, args):
     algorithm.to(ptu.device)
     algorithm.train()
 
+
 def get_env(name):
     if name == 'test':
         expl_env, eval_env = Navigation2d(), Navigation2d()
@@ -106,7 +129,7 @@ def get_env(name):
     elif name == 'Ant':
         return NormalizedBoxEnv(AntEnv(expose_all_qpos=True)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
     elif name == 'Half-cheetah':
-        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
+        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
 
     return NormalizedBoxEnv(gym.make('name')), NormalizedBoxEnv(gym.make('name'))
 
@@ -117,36 +140,49 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('env', type=str,
                         help='environment')
-    parser.add_argument('--skill_dim', type=int, default=10,
+    parser.add_argument('--skill_dim', type=int, default=2,
                         help='skill dimension')
+    parser.add_argument('--ends_dim', type=int, default=2,
+                        help='end_state dimension')
     args = parser.parse_args()
 
     # noinspection PyTypeChecker
     variant = dict(
-        algorithm="DIAYN",
+        algorithm="GCS2",
         version="normal",
         layer_size=128,
-        replay_buffer_size=int(1E7),
+        replay_buffer_size=int(1E2),
+        sd_buffer_size=int(1E4),
+        goal_buffer_size=int(1E4),
+        exclude_obs_ind=[0],
+        goal_ind=None,
+        skill_horizon=200,
+        batch_norm=False,
         algorithm_kwargs=dict(
-            num_epochs=10000, #1000
+            num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
-            num_trains_per_train_loop=1000,
+            num_trains_per_train_loop=64,
             num_expl_steps_per_train_loop=1000,
-            min_num_steps_before_training=1000,
-            max_path_length=1000,
+            num_trains_discriminator_per_train_loop=8,
+            min_num_steps_before_training=0,
+            max_path_length=200,
             batch_size=128, #256
-        ),
+            num_steps=2,
+        )
+        ,
         trainer_kwargs=dict(
-            discount=0.99,
+            discount=0.,
             soft_target_tau=5e-3,
             target_update_period=1,
             policy_lr=3E-4,
             qf_lr=3E-4,
+            dyn_lr=3E-4,
+            gamma=0.9,
             reward_scale=1,
-            use_automatic_entropy_tuning=True,
+            use_automatic_entropy_tuning=False,
         ),
     )
-    setup_logger('DIAYN_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
+    setup_logger('MSDADS_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
             snapshot_gap=100,)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant, args)

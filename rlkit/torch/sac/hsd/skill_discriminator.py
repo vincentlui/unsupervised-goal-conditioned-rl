@@ -101,7 +101,6 @@ class DiscreteSkillDiscriminator(Mlp):
             hidden_sizes,
             input_size,
             skill_dim,
-            std=None,
             init_w=1e-3,
             **kwargs
     ):
@@ -113,19 +112,19 @@ class DiscreteSkillDiscriminator(Mlp):
             **kwargs
         )
         self.skill_dim = skill_dim
-        self.batchnorm_input = torch.nn.BatchNorm1d(input_size)
-        self.batchnorm_hidden = [torch.nn.BatchNorm1d(h) for h in hidden_sizes]
+        # self.batchnorm_input = torch.nn.BatchNorm1d(input_size)
+        # self.batchnorm_hidden = [torch.nn.BatchNorm1d(h) for h in hidden_sizes]
         # self.batchnorm_output = torch.nn.BatchNorm1d(skill_dim)
 
-    def forward(
-            self, input, return_preactivations=False,
-    ):
-        h = input
-        for i, fc in enumerate(self.fcs):
-            h = self.batchnorm_hidden[i](self.hidden_activation(fc(h)))
-        out = self.last_fc(h)
-
-        return out
+    # def forward(
+    #         self, input, return_preactivations=False,
+    # ):
+    #     h = input
+    #     for i, fc in enumerate(self.fcs):
+    #         h = self.hidden_activation(fc(h))
+    #     out = self.last_fc(h)
+    #
+    #     return out
 
     def predict(self, input):
         out = eval_np(self, input)

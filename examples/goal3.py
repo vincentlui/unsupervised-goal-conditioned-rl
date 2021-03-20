@@ -71,9 +71,9 @@ def experiment(variant, args):
         input_size=obs_dim + skill_dim,
         state_dim=ends_dim,
         hidden_sizes=[M, M],
-        num_components=1,
+        num_components=4,
         batch_norm=True,#variant['batch_norm'],
-        std=[1.] * ends_dim * 1
+        std=[1.] * ends_dim * 4
     )
     # goal_buffer = GCSGoalBuffer(
     #     variant['goal_buffer_size'],
@@ -177,18 +177,18 @@ if __name__ == "__main__":
         algorithm="GCS2",
         version="normal",
         layer_size=128,
-        replay_buffer_size=int(1E5),
+        replay_buffer_size=int(1E4),
         sd_buffer_size=int(1E4),
         goal_buffer_size=int(1E4),
         exclude_obs_ind=[0],
-        goal_ind=[0],
+        goal_ind=None,#[0, 1],
         skill_horizon=200,
         batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
             num_trains_per_train_loop=64,
-            num_expl_steps_per_train_loop=600,
+            num_expl_steps_per_train_loop=1000,
             num_trains_discriminator_per_train_loop=8,
             min_num_steps_before_training=2000,
             max_path_length=200,
@@ -196,7 +196,7 @@ if __name__ == "__main__":
         )
         ,
         trainer_kwargs=dict(
-            discount=0.,
+            discount=0.2,
             soft_target_tau=5e-3,
             target_update_period=1,
             policy_lr=3E-4,

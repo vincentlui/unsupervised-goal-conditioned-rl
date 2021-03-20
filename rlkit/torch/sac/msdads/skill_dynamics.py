@@ -1,13 +1,11 @@
 import torch
 from torch import nn as nn
-from torch.nn import functional as F
+from torch.nn import functional as F, BatchNorm1d
 from torch.distributions import Normal, Independent, Categorical
-from rlkit.torch.core import eval_np
 
 from rlkit.torch.networks import Mlp
-from rlkit.torch.sac.gcs.networks import BNMlp
-from rlkit.torch.sac.gcs.networks import BNMlp, MixtureSameFamily
 import numpy as np
+from rlkit.torch.sac.gcs.networks import BNMlp, MixtureSameFamily
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
@@ -17,33 +15,33 @@ def identity(x):
     return x
 
 
-class SkillDiscriminator(BNMlp):
+class SkillDynamics(BNMlp):
     def __init__(
             self,
             hidden_sizes,
             input_size,
-            skill_dim,
+            state_dim,
             num_components=1,
-            batch_norm=False,
             std=None,
             init_w=1e-3,
-            output_activation=torch.tanh,
+            batch_norm=False,
             **kwargs
     ):
-        output_size = skill_dim * num_components
+        output_size = state_dim * num_components
         super().__init__(
             hidden_sizes=hidden_sizes,
             input_size=input_size,
             output_size=output_size,
             init_w=init_w,
-            output_activation=output_activation,
             batch_norm=batch_norm,
             **kwargs
         )
-        self.skill_dim = skill_dim
+        # self.skill_dim = skill_dim
+        self.state_dim = state_dim
         self.log_std = None
         self.std = std
-        # self.batchnorm_output = torch.nn.BatchNorm1d(skill_dim)
+        self.batch_norm = batch_norm
+        self.batchnorm_output = BatchNorm1d(state_dim, affine=False)
         self.num_components = num_components
 
         if std is None:
@@ -82,8 +80,8 @@ class SkillDiscriminator(BNMlp):
             std = self.std
 
         if self.num_components > 1:
-            mean = mean.view(-1, self.num_components, self.skill_dim)
-            std = std.view(-1, self.num_components, self.skill_dim)
+            mean = mean.view(-1, self.num_components, self.state_dim)
+            std = std.view(-1, self.num_components, self.state_dim)
             categorical_logits = self.last_fc_categorical(h)
             distribution = MixtureSameFamily(
                 Categorical(logits=categorical_logits),
@@ -94,40 +92,9 @@ class SkillDiscriminator(BNMlp):
 
         return distribution
 
-
-class DiscreteSkillDiscriminator(Mlp):
-    def __init__(
-            self,
-            hidden_sizes,
-            input_size,
-            skill_dim,
-            std=None,
-            init_w=1e-3,
-            **kwargs
-    ):
-        super().__init__(
-            hidden_sizes=hidden_sizes,
-            input_size=input_size,
-            output_size=skill_dim,
-            init_w=init_w,
-            **kwargs
-        )
-        self.skill_dim = skill_dim
-        self.batchnorm_input = torch.nn.BatchNorm1d(input_size)
-        self.batchnorm_hidden = [torch.nn.BatchNorm1d(h) for h in hidden_sizes]
-        # self.batchnorm_output = torch.nn.BatchNorm1d(skill_dim)
-
-    def forward(
-            self, input, return_preactivations=False,
-    ):
-        h = input
-        for i, fc in enumerate(self.fcs):
-            h = self.batchnorm_hidden[i](self.hidden_activation(fc(h)))
-        out = self.last_fc(h)
-
-        return out
-
-    def predict(self, input):
-        out = eval_np(self, input)
-        prob = F.softmax(out)
-        val = np.argmax(out)
+    def log_prob(self, input, target):
+        sf_distribution = self(input)
+        if self.batch_norm:
+            target = self.batchnorm_output(target)
+        log_likelihood = sf_distribution.log_prob(target)
+        return log_likelihood

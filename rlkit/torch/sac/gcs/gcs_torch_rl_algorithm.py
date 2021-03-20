@@ -20,7 +20,6 @@ class GCSTorchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             exploration_data_collector: StepCollector,
             evaluation_data_collector: PathCollector,
             replay_buffer: ReplayBuffer,
-            sd_replay_buffer,
             batch_size,
             max_path_length,
             num_epochs,
@@ -42,7 +41,7 @@ class GCSTorchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         )
         self.batch_size = batch_size
         # self.goal_buffer = goal_buffer
-        self.sd_replay_buffer = sd_replay_buffer
+        # self.sd_replay_buffer = sd_replay_buffer
         self.max_path_length = max_path_length
         self.num_epochs = num_epochs
         self.num_eval_steps_per_epoch = num_eval_steps_per_epoch
@@ -62,15 +61,14 @@ class GCSTorchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
     def _train(self):
         self.training_mode(False)
         if self.min_num_steps_before_training > 0:
-            _, skill_goals = self.expl_data_collector.collect_new_paths(
+            self.expl_data_collector.collect_new_paths(
                 self.max_path_length,
                 self.min_num_steps_before_training,
                 discard_incomplete_paths=False,
-                goal_conditioned=False,
+                # goal_conditioned=False,
             )
             init_expl_paths = self.expl_data_collector.get_epoch_paths()
             self.replay_buffer.add_paths(init_expl_paths)
-            self.sd_replay_buffer.add_paths(init_expl_paths)
             # self.goal_buffer.add(skill_goals)
             self.expl_data_collector.end_epoch(-1)
             gt.stamp('initial exploration', unique=True)
@@ -88,28 +86,34 @@ class GCSTorchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             # gt.stamp('evaluation sampling')
 
             # set policy  for one epoch
-            # self.policy.skill_reset()
+            self.policy.skill_reset()
 
             for _ in range(self.num_train_loops_per_epoch):
-                _, skill_goals = self.expl_data_collector.collect_new_paths(
+                self.expl_data_collector.collect_new_paths(
                     self.max_path_length,
                     self.num_expl_steps_per_train_loop,  # num steps
                     discard_incomplete_paths=False,
-                    goal_condition_training=(epoch>=self.num_epoch_before_goal_condition_sampling),
+                    # goal_condition_training=(epoch>=self.num_epoch_before_goal_condition_sampling),
                 )
                 gt.stamp('exploration sampling', unique=False)
 
                 new_expl_paths = self.expl_data_collector.get_epoch_paths()
                 self.replay_buffer.add_paths(new_expl_paths)
-                self.sd_replay_buffer.add_paths(new_expl_paths)
                 # self.goal_buffer.add(skill_goals)
                 gt.stamp('data storing', unique=False)
 
                 self.training_mode(True)
+                # for _ in range(self.num_trains_discriminator_per_train_loop):
+                #     train_data = self.replay_buffer.random_batch(
+                #         self.batch_size)
+                #     self.trainer.train_discriminator(np_to_pytorch_batch(train_data))
                 for _ in range(self.num_trains_per_train_loop):
                     train_data = self.replay_buffer.random_batch(
                         self.batch_size)
                     self.trainer.train(train_data)
+                # train_data = self.replay_buffer.random_batch(
+                #     self.batch_size)
+                # self.trainer.train(train_data)
                 gt.stamp('training', unique=False)
                 self.training_mode(False)
 
