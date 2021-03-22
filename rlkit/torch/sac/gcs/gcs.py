@@ -153,7 +153,7 @@ class GCSTrainer(TorchTrainer):
         importance_weight = self._calc_importance_weight(self.policy.log_prob(obs, skills, actions), log_probs_old)
         print(ptu.gpu_enabled())
         print(ptu.FloatTensor([2**self.policy.skill_dim]))
-        rewards = torch.log(ptu.tensor([2**self.policy.skill_dim]))
+        rewards = torch.log(ptu.FloatTensor([2**self.policy.skill_dim]))
         # rewards = torch.log(1 + torch.exp(log_likelihood)).view(-1, 1)
         # rewards = self._calc_reward(cur_states, skill_goals-cur_states, skills)
         # df_loss = -log_likelihood.mean()
