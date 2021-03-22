@@ -35,21 +35,22 @@ def simulate_policy2(args):
     # env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
     # env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
     env = NormalizedBoxEnv(gym.make('Swimmer-v2'))
+    env = NormalizedBoxEnv(gym.make('MountainCarContinuous-v0'))
     figure = plt.figure()
-    skills = torch.Tensor(np.vstack([np.arange(-0.9, 0.91, 0.2), 0.5 * np.ones(10), 0.0 * np.ones(10)])).transpose(1, 0)
+    skills = torch.Tensor(np.vstack([np.arange(-0.9, 0.91, 0.2), 0.5 * np.ones(10)])).transpose(1, 0)
     # skills = torch.Tensor(np.vstack([0.5 * np.ones(10), np.arange(-0.9, 0.91, 0.2)])).transpose(1, 0)
     # skills = torch.Tensor(np.vstack([-0.3 * np.ones(6), -0.3 * np.ones(6), -0.3 * np.ones(6)])).transpose(1, 0)
     # skills = torch.Tensor(np.arange(-0.9, 0.99,0.1)).reshape(-1,1)
     # skills = 0.8*torch.ones([5, 12])
     for skill in skills:
-        # skill = policy.stochastic_policy.skill_space.sample()
-        policy.skill = skill
-        path = DIAYNRollout(env, policy.stochastic_policy, skill, max_path_length=args.H, render=True)
+        skill = policy.stochastic_policy.skill_space.sample()
+        policy.stochastic_policy.skill = skill
+        path = DIAYNRollout(env, policy, max_path_length=args.H, render=True)
         obs = path['observations']
         plt.plot(obs[:,0], obs[:,1], label=tuple(skill.numpy()))
         action = path['actions']
-        # print(action)
-        print(obs[-1])
+        print(action)
+        # print(obs[-1])
 
     plt.xlim([-4,4])
     plt.ylim([-4,4])
@@ -164,7 +165,7 @@ def simulate_policy4(args):
 #     plt.legend()
 #     plt.show()
 
-def DIAYNRollout(env, agent, skill, max_path_length=np.inf, render=False):
+def DIAYNRollout(env, agent, max_path_length=np.inf, render=False):
     """
     The following value for the following keys will be a 2D array, with the
     first dimension corresponding to the time dimension.
@@ -197,13 +198,14 @@ def DIAYNRollout(env, agent, skill, max_path_length=np.inf, render=False):
     next_o = None
     path_length = 0
     if render:
-        img = env.render('rgb_array')
+        # img = env.render('rgb_array')
+        img = env.render()
 #        env.viewer.cam.fixedcamid = 0
 #        env.viewer.cam.type = 2
         images.append(img)
 
     while path_length < max_path_length:
-        agent.skill = skill
+        # agent.stochastic_policy.skill = skill
         a, agent_info = agent.get_action(o)
         next_o, r, d, env_info = env.step(a)
         observations.append(o)
@@ -217,7 +219,8 @@ def DIAYNRollout(env, agent, skill, max_path_length=np.inf, render=False):
             break
         o = next_o
         if render:
-            img = env.render('rgb_array')
+            # img = env.render('rgb_array')
+            img = env.render()
             images.append(img)
 
     actions = np.array(actions)

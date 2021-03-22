@@ -153,12 +153,12 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS",
         version="normal",
-        layer_size=256,
+        layer_size=128,
         replay_buffer_size=int(1E5),
         exclude_obs_ind=None,#[0, 1],
         goal_ind=None,#[0, 1],
         target_obs_name='observation',
-        skill_horizon=1,
+        skill_horizon=200,
         batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
