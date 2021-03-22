@@ -7,6 +7,7 @@ import torch.optim as optim
 from torch import nn as nn
 import torch.nn.functional as F
 from torch.distributions import Uniform
+from rlkit.torch import pytorch_util as ptu
 
 import rlkit.torch.pytorch_util as ptu
 from rlkit.core.eval_util import create_stats_ordered_dict
@@ -150,7 +151,7 @@ class GCSTrainer(TorchTrainer):
         df_distribution = self.df(df_input)
         log_likelihood = df_distribution.log_prob(skills).view(-1,1)
         importance_weight = self._calc_importance_weight(self.policy.log_prob(obs, skills, actions), log_probs_old)
-        rewards = log_likelihood + torch.log(torch.Tensor([2**self.policy.skill_dim]))
+        rewards = log_likelihood + torch.log(ptu.FloatTensor([2**self.policy.skill_dim]))
         # rewards = torch.log(1 + torch.exp(log_likelihood)).view(-1, 1)
         # rewards = self._calc_reward(cur_states, skill_goals-cur_states, skills)
         # df_loss = -log_likelihood.mean()

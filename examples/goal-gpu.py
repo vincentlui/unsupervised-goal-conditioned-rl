@@ -126,10 +126,10 @@ def get_env(name):
         # expl_env.set_random_start_state(True)
         # eval_env.set_random_start_state(True)
         return NormalizedBoxEnv(expl_env), NormalizedBoxEnv(eval_env)
-    elif name == 'Ant':
-        return NormalizedBoxEnv(AntEnv(expose_all_qpos=False)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
-    elif name == 'Half-cheetah':
-        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
+    # elif name == 'Ant':
+    #     return NormalizedBoxEnv(AntEnv(expose_all_qpos=False)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
+    # elif name == 'Half-cheetah':
+    #     return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
 
     return NormalizedBoxEnv(gym.make(name)), NormalizedBoxEnv(gym.make(name))
 
