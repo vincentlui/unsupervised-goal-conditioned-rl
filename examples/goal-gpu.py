@@ -157,7 +157,7 @@ if __name__ == "__main__":
         skill_horizon=5,
         batch_norm=False,
         algorithm_kwargs=dict(
-            num_epochs=3000, #1000
+            num_epochs=10, #1000
             num_eval_steps_per_epoch=0,
             num_trains_per_train_loop=200,
             num_expl_steps_per_train_loop=600,
