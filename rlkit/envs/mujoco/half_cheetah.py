@@ -33,7 +33,9 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     # Settings from
     # https://github.com/openai/gym/blob/master/gym/envs/__init__.py
     self._expose_all_qpos = expose_all_qpos
+    task = 'goal'
     self._task = task
+    self._goal = 10
     self._target_velocity = target_velocity
 
     xml_path = "envs/assets/"
@@ -64,6 +66,10 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
       reward_vel = 0.
       reward_run = (xposbefore - xposafter) / self.dt
       reward = reward_ctrl + reward_run
+    elif self._task == "goal":
+      reward_vel = 0.
+      reward_run = (xposafter - xposbefore) / self.dt
+      reward = reward_run
 
     done = False
     return ob, reward, done, dict(

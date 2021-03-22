@@ -8,7 +8,7 @@ from rlkit.envs.navigation2d.navigation2d import Navigation2d
 from rlkit.envs.mujoco.ant import AntEnv
 from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 from rlkit.samplers.util import DIAYNRollout as rollout
-from rlkit.samplers.rollout_functions import hierachical_rollout
+from rlkit.samplers.rollout_functions import hierachical_rollout, hierachical_rollout2
 
 
 def simulate_policy(args):
@@ -33,14 +33,14 @@ def simulate_policy2(args):
     policy = data['evaluation/policy']
     envs = NormalizedBoxEnv(Navigation2d())
     # env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
-    env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
-    # env = NormalizedBoxEnv(gym.make('Swimmer-v2'))
+    # env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
+    env = NormalizedBoxEnv(gym.make('Swimmer-v2'))
     figure = plt.figure()
-    skills = torch.Tensor(np.vstack([np.arange(-0.9, 0.91, 0.2), 0. * np.ones(10)])).transpose(1, 0)
+    skills = torch.Tensor(np.vstack([np.arange(-0.9, 0.91, 0.2), 0.5 * np.ones(10), 0.0 * np.ones(10)])).transpose(1, 0)
     # skills = torch.Tensor(np.vstack([0.5 * np.ones(10), np.arange(-0.9, 0.91, 0.2)])).transpose(1, 0)
     # skills = torch.Tensor(np.vstack([-0.3 * np.ones(6), -0.3 * np.ones(6), -0.3 * np.ones(6)])).transpose(1, 0)
     # skills = torch.Tensor(np.arange(-0.9, 0.99,0.1)).reshape(-1,1)
-    skills = -0.8*torch.ones([5, 6])
+    # skills = 0.8*torch.ones([5, 12])
     for skill in skills:
         # skill = policy.stochastic_policy.skill_space.sample()
         policy.skill = skill
@@ -49,6 +49,7 @@ def simulate_policy2(args):
         plt.plot(obs[:,0], obs[:,1], label=tuple(skill.numpy()))
         action = path['actions']
         # print(action)
+        print(obs[-1])
 
     plt.xlim([-4,4])
     plt.ylim([-4,4])
@@ -68,18 +69,44 @@ def simulate_policy3(args):
     # skills = torch.Tensor(np.vstack([-0.3 * np.ones(6), -0.3 * np.ones(6), -0.3 * np.ones(6)])).transpose(1, 0)
     # skills = torch.Tensor(np.arange(-0.9, 0.99,0.1)).reshape(-1,1)
     # skills = torch.ones([5, 3])
-    skills = torch.Tensor([[-0.4816,  0.6261,  0.8474,  0.6539,  0.4415, -0.8237]])
+    skills = torch.Tensor([[ -1, -1,  1]])
+    skills = torch.Tensor(np.vstack([0. * np.ones(10), 0. * np.ones(10), 0. * np.ones(10),0. * np.ones(10),0. * np.ones(10),np.arange(-0.9, 0.91, 0.2)])).transpose(1, 0)
     for skill in skills:
-        # skill = policy.stochastic_policy.skill_space.sample()
-        # print(skill)
-        path = DIAYNRollout2(env, policy.stochastic_policy, skill, skill_horizon=10, scale=0.2, max_path_length=args.H, render=True)
-        obs = path['observations']
-        plt.plot(obs[:,0], obs[:,1], label=tuple(skill.numpy()))
-        action = path['actions']
+        skill = policy.stochastic_policy.skill_space.sample()
+        print(skill)
+        path = DIAYNRollout2(env, policy, skill, skill_horizon=3, scale=1, max_path_length=args.H, render=True)
+        # obs = path['observations']
+        # plt.plot(obs[:,0], obs[:,1], label=tuple(skill.numpy()))
+        # action = path['actions']
         # print(action)
+        # rewards = path['rewards']
+        # print(rewards)
 
     plt.xlim([-4,4])
     plt.ylim([-4,4])
+    # plt.legend()
+    # plt.show()
+
+def simulate_policy4(args):
+    data = torch.load(args.file2, map_location='cpu')
+    policy = data['evaluation/scheduler']
+    data = torch.load(args.file, map_location='cpu')
+    worker = data['evaluation/policy']
+    env = NormalizedBoxEnv(Navigation2d())
+    # env = NormalizedBoxEnv(AntEnv(expose_all_qpos=False))
+    env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
+    # env = NormalizedBoxEnv(gym.make('Swimmer-v2'))
+    figure = plt.figure()
+    # for skill in skills:
+    path = hierachical_rollout2(env, policy.stochastic_policy,
+                                worker, skill_horizon=3, max_path_length=args.H, render=True)
+    # obs = path['observations']
+    # plt.plot(obs[:,0], obs[:,1], label=tuple(skill.numpy()))
+    # action = path['actions']
+    # print(action)
+
+    # plt.xlim([-4,4])
+    # plt.ylim([-4,4])
     # plt.legend()
     # plt.show()
 
@@ -254,9 +281,11 @@ def DIAYNRollout2(env, agent, skill,skill_horizon=5,scale=1, max_path_length=np.
 #        env.viewer.cam.fixedcamid = 0
 #        env.viewer.cam.type = 2
         images.append(img)
+    # agent.stochastic_policy.set_skill(skill)
     agent.set_skill(skill)
     while path_length < max_path_length:
         a, agent_info = agent.get_action(o)
+        print(path_length, a)
         next_o, r, d, env_info = env.step(a)
         observations.append(o)
         rewards.append(r)
@@ -271,12 +300,15 @@ def DIAYNRollout2(env, agent, skill,skill_horizon=5,scale=1, max_path_length=np.
         if render:
             img = env.render('rgb_array')
             images.append(img)
-        randomskill = agent.skill_space.sample()
+        randomskill = agent.stochastic_policy.skill_space.sample()
+        # randomskill = agent.skill_space.sample()
+        # randomskill = [0,0,0,0,0,0]
         if path_length % skill_horizon == 0:
-            # agent.set_skill(randomskill)
-            agent.set_skill(-scale*skill)
+            agent.stochastic_policy.set_skill(randomskill)
+            # agent.stochastic_policy.set_skill(-scale*skill)
         if path_length % (2*skill_horizon) == 0:
-            agent.set_skill(scale*skill)
+            # agent.stochastic_policy.set_skill(randomskill)
+            agent.stochastic_policy.set_skill(scale*skill)
 
     actions = np.array(actions)
     if len(actions.shape) == 1:
@@ -302,13 +334,108 @@ def DIAYNRollout2(env, agent, skill,skill_horizon=5,scale=1, max_path_length=np.
         images=images
     )
 
+def test(max_path_length=np.inf, render=True):
+    """
+    The following value for the following keys will be a 2D array, with the
+    first dimension corresponding to the time dimension.
+     - observations
+     - actions
+     - rewards
+     - next_observations
+     - terminals
+
+    The next two elements will be lists of dictionaries, with the index into
+    the list being the index into the time
+     - agent_infos
+     - env_infos
+
+    :param env:
+    :param agent:
+    :param max_path_length:
+    :param render:
+    :return:
+    """
+    skill_horizon = 20
+    scale=0.3
+    env = NormalizedBoxEnv(Navigation2d())
+    env = NormalizedBoxEnv(AntEnv(expose_all_qpos=False))
+    env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
+    # env = NormalizedBoxEnv(gym.make('Swimmer-v2'))
+    ac=np.array([1, 1, 1, 1, 1, 1])
+    a=ac
+    observations = []
+    actions = []
+    rewards = []
+    terminals = []
+    agent_infos = []
+    env_infos = []
+    images = []
+
+    o = env.reset()
+    next_o = None
+    path_length = 0
+    if render:
+        img = env.render('rgb_array')
+#        env.viewer.cam.fixedcamid = 0
+#        env.viewer.cam.type = 2
+        images.append(img)
+    while path_length < max_path_length:
+        # a, agent_info = agent.get_action(o)
+        next_o, r, d, env_info = env.step(a)
+        observations.append(o)
+        rewards.append(r)
+        terminals.append(d)
+        actions.append(a)
+        # agent_infos.append(agent_info)
+        env_infos.append(env_info)
+        path_length += 1
+        if max_path_length == np.inf and d:
+            break
+        o = next_o
+        if render:
+            img = env.render('rgb_array')
+            images.append(img)
+        # randomskill = agent.skill_space.sample()
+        if path_length % skill_horizon == 0:
+            # agent.set_skill(randomskill)
+            a = -scale * ac
+        if path_length % (2*skill_horizon) == 0:
+            a = scale * ac
+
+    # actions = np.array(actions)
+    # if len(actions.shape) == 1:
+    #     actions = np.expand_dims(actions, 1)
+    # observations = np.array(observations)
+    # if len(observations.shape) == 1:
+    #     observations = np.expand_dims(observations, 1)
+    #     next_o = np.array([next_o])
+    # next_observations = np.vstack(
+    #     (
+    #         observations[1:, :],
+    #         np.expand_dims(next_o, 0)
+    #     )
+    # )
+    # return dict(
+    #     observations=observations,
+    #     actions=actions,
+    #     rewards=np.array(rewards).reshape(-1, 1),
+    #     next_observations=next_observations,
+    #     terminals=np.array(terminals).reshape(-1, 1),
+    #     agent_infos=agent_infos,
+    #     env_infos=env_infos,
+    #     images=images
+    # )
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('file', type=str,
+                        help='path to the snapshot file')
+    parser.add_argument('file2', type=str,
                         help='path to the snapshot file')
     parser.add_argument('--H', type=int, default=200,
                         help='Max length of rollout')
     parser.add_argument('--gpu', action='store_true')
     args = parser.parse_args()
 
-    simulate_policy3(args)
+    simulate_policy2(args)
+    # test()

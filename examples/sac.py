@@ -1,5 +1,6 @@
 from gym.envs.mujoco import HalfCheetahEnv
-
+import argparse
+import gym
 import rlkit.torch.pytorch_util as ptu
 from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
 from rlkit.envs.wrappers import NormalizedBoxEnv
@@ -9,11 +10,15 @@ from rlkit.torch.sac.policies import TanhGaussianPolicy, MakeDeterministic
 from rlkit.torch.sac.sac import SACTrainer
 from rlkit.torch.networks import FlattenMlp
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
+from envs.navigation2d.navigation2d import Navigation2d
+from rlkit.envs.mujoco.ant import AntEnv
+from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 
 
-def experiment(variant):
-    expl_env = NormalizedBoxEnv(HalfCheetahEnv())
-    eval_env = NormalizedBoxEnv(HalfCheetahEnv())
+def experiment(variant, args):
+    expl_env, eval_env = get_env(str(args.env))
+    # expl_env = NormalizedBoxEnv(HalfCheetahEnv())
+    # eval_env = NormalizedBoxEnv(HalfCheetahEnv())
     obs_dim = expl_env.observation_space.low.size
     action_dim = eval_env.action_space.low.size
 
@@ -77,24 +82,39 @@ def experiment(variant):
     algorithm.to(ptu.device)
     algorithm.train()
 
+def get_env(name):
+    if name == 'test':
+        expl_env, eval_env = Navigation2d(), Navigation2d()
+        # expl_env.set_random_start_state(True)
+        # eval_env.set_random_start_state(True)
+        return NormalizedBoxEnv(expl_env), NormalizedBoxEnv(eval_env)
+    elif name == 'Ant':
+        return NormalizedBoxEnv(AntEnv(expose_all_qpos=False)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
+    elif name == 'Half-cheetah':
+        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
 
+    return NormalizedBoxEnv(gym.make(name)), NormalizedBoxEnv(gym.make(name))
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('env', type=str,
+                        help='environment')
+    args = parser.parse_args()
     # noinspection PyTypeChecker
     variant = dict(
         algorithm="SAC",
         version="normal",
-        layer_size=256,
+        layer_size=128,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
             num_epochs=3000,
-            num_eval_steps_per_epoch=5000,
-            num_trains_per_train_loop=1000,
+            num_eval_steps_per_epoch=2000,
+            num_trains_per_train_loop=200,
             num_expl_steps_per_train_loop=1000,
             min_num_steps_before_training=1000,
-            max_path_length=1000,
-            batch_size=256,
+            max_path_length=200,
+            batch_size=128,
         ),
         trainer_kwargs=dict(
             discount=0.99,
@@ -107,5 +127,7 @@ if __name__ == "__main__":
         ),
     )
     setup_logger('name-of-experiment', variant=variant)
+    setup_logger('SAC' + '_' + args.env, variant=variant, snapshot_mode="gap_and_last",
+                 snapshot_gap=100, )
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
-    experiment(variant)
+    experiment(variant, args)

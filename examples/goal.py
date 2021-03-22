@@ -67,7 +67,7 @@ def experiment(variant, args):
         output_activation=torch.tanh,
         num_components=1,
         batch_norm=False, #variant['batch_norm'],
-        std=[1.] * skill_dim
+        # std=[1.] * skill_dim
     )
     policy = UniformSkillTanhGaussianPolicy(
         obs_dim=obs_dim + skill_dim ,
@@ -131,7 +131,7 @@ def get_env(name):
     elif name == 'Half-cheetah':
         return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
 
-    return NormalizedBoxEnv(gym.make(args.env)), NormalizedBoxEnv(gym.make(args.env))
+    return NormalizedBoxEnv(gym.make(name)), NormalizedBoxEnv(gym.make(name))
 
 
 
@@ -151,10 +151,10 @@ if __name__ == "__main__":
         algorithm="GCS",
         version="normal",
         layer_size=128,
-        replay_buffer_size=int(1E6),
+        replay_buffer_size=int(1E5),
         exclude_obs_ind=None,#[0, 1],
         goal_ind=None,#[0, 1],
-        skill_horizon=1,
+        skill_horizon=5,
         batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
