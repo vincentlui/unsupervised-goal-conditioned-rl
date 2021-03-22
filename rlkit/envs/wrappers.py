@@ -167,3 +167,13 @@ class NormalizedBoxEnv(ProxyEnv):
     def __str__(self):
         return "Normalized: %s" % self._wrapped_env
 
+class GoalToNormalEnv(NormalizedBoxEnv):
+    def __init__(
+            self,
+            env,
+            reward_scale=1.,
+            obs_mean=None,
+            obs_std=None,
+    ):
+        NormalizedBoxEnv.__init__(self, env)
+        self.observation_space = env.observation_space.spaces['observation']

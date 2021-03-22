@@ -16,6 +16,7 @@ class GCSMdpPathCollector(MdpPathCollector):
                 render_kwargs=None,
                 exclude_obs_ind=None,
                 goal_ind=None,
+                target_obs_name=None,
                 skill_horizon=1):
 
         super().__init__(
@@ -28,7 +29,7 @@ class GCSMdpPathCollector(MdpPathCollector):
         self.goal_ind = goal_ind
         self.skill_horizon = skill_horizon
         self.exclude_obs_ind = exclude_obs_ind
-        self.mean, self.std = get_stats(skill_horizon)
+        self.target_obs_name = target_obs_name
         if exclude_obs_ind:
             obs_len = get_dim(env.observation_space)
             self.obs_ind = get_indices(obs_len, exclude_obs_ind)
@@ -112,6 +113,8 @@ class GCSMdpPathCollector(MdpPathCollector):
         next_states = []
         skill_steps = []
         o = self._env.reset()
+        if self.target_obs_name is not None:
+            o = o[self.target_obs_name]
         o_policy = o
         if self.exclude_obs_ind:
             o_policy = o[self.obs_ind]
@@ -124,6 +127,8 @@ class GCSMdpPathCollector(MdpPathCollector):
         while path_length < max_path_length:
             a, agent_info = self._policy.get_action(o_policy, return_log_prob=True)
             next_o, r, d, env_info = self._env.step(a)
+            if self.target_obs_name is not None:
+                next_o = next_o[self.target_obs_name]
             observations.append(o)
             rewards.append(r)
             terminals.append(d)
