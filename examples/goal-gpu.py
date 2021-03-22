@@ -2,8 +2,8 @@ import gym
 import argparse
 import torch
 from envs.navigation2d.navigation2d import Navigation2d
-from rlkit.envs.mujoco.ant import AntEnv
-from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
+# from rlkit.envs.mujoco.ant import AntEnv
+# from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 
 import rlkit.torch.pytorch_util as ptu
 # from rlkit.torch.sac.diayn.diayn_env_replay_buffer import DIAYNEnvReplayBuffer
