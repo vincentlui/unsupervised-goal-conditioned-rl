@@ -154,10 +154,10 @@ if __name__ == "__main__":
         replay_buffer_size=int(1E5),
         exclude_obs_ind=None,#[0, 1],
         goal_ind=None,#[0, 1],
-        skill_horizon=5,
+        skill_horizon=1,
         batch_norm=False,
         algorithm_kwargs=dict(
-            num_epochs=10, #1000
+            num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
             num_trains_per_train_loop=200,
             num_expl_steps_per_train_loop=600,
