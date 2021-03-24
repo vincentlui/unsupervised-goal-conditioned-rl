@@ -154,7 +154,7 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS",
         version="normal",
-        layer_size=200,
+        layer_size=512,
         replay_buffer_size=int(1E5),
         exclude_obs_ind=None,
         goal_ind=[3,4,5],
@@ -164,12 +164,12 @@ if __name__ == "__main__":
         algorithm_kwargs=dict(
             num_epochs=5000, #1000
             num_eval_steps_per_epoch=0,
-            num_trains_per_train_loop=1000,
+            num_trains_per_train_loop=500,
             num_expl_steps_per_train_loop=1000,
             num_trains_discriminator_per_train_loop=8,
             min_num_steps_before_training=0,
             max_path_length=200,
-            batch_size=128, #256
+            batch_size=256, #256
         )
         ,
         trainer_kwargs=dict(

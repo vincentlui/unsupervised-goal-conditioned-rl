@@ -183,7 +183,7 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=True,
         ),
     )
-    setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
-            snapshot_gap=100,)
+    # setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
+    #         snapshot_gap=100,)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant, args)
