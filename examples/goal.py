@@ -66,7 +66,7 @@ def experiment(variant, args):
         output_activation=torch.tanh,
         num_components=1,
         batch_norm=False, #variant['batch_norm'],
-        std=[1.] * skill_dim
+        # std=[1.] * skill_dim
     )
     policy = UniformSkillTanhGaussianPolicy(
         obs_dim=obs_dim + skill_dim ,
@@ -132,6 +132,8 @@ def get_env(name):
         return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
     elif name == 'FetchReach-v1':
         return GoalToNormalEnv(gym.make(name)), GoalToNormalEnv(gym.make(name))
+    elif name == 'FetchPush-v1':
+        return GoalToNormalEnv(gym.make(name)), GoalToNormalEnv(gym.make(name))
 
     return NormalizedBoxEnv(gym.make(name)), NormalizedBoxEnv(gym.make(name))
 
@@ -155,14 +157,14 @@ if __name__ == "__main__":
         layer_size=200,
         replay_buffer_size=int(1E5),
         exclude_obs_ind=None,
-        goal_ind=[0,1],
-        target_obs_name=None,#'observation',
+        goal_ind=[3,4,5],
+        target_obs_name='observation',
         skill_horizon=200,
         batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
-            num_trains_per_train_loop=600,
+            num_trains_per_train_loop=200,
             num_expl_steps_per_train_loop=600,
             num_trains_discriminator_per_train_loop=8,
             min_num_steps_before_training=0,

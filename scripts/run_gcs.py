@@ -19,13 +19,13 @@ def simulate_policy(args, goal):
     df = data['trainer/df']
     # env = NormalizedBoxEnv(Navigation2d())
     # env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
-    # env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
+    env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
     # env = NormalizedBoxEnv(gym.make('Swimmer-v2'))
     # env = NormalizedBoxEnv(gym.make('MountainCarContinuous-v0'))
-    env = GoalToNormalEnv(gym.make('FetchReach-v1'))
-    env = GoalToNormalEnv(FetchReachEnv())
+    # env = GoalToNormalEnv(gym.make('FetchReach-v1'))
+    # env = GoalToNormalEnv(FetchReachEnv())
     path = GCSRollout(env, policy, df, goal, max_path_length=args.H, render=True)
-    write_vid(path)
+    # write_vid(path)
     env.close()
 
 def GCSRollout(env, agent, df, goal, skill_horizon=200, max_path_length=np.inf, render=False):
@@ -38,9 +38,10 @@ def GCSRollout(env, agent, df, goal, skill_horizon=200, max_path_length=np.inf, 
     images = []
 
     o_env = env.reset()
-    o = o_env['observation']
-    print(o_env['desired_goal'])
-    goal = o_env['desired_goal']
+    o = o_env
+    # o = o_env['observation']
+    # print(o_env['desired_goal'])
+    # goal = o_env['desired_goal']
     # goal = np.subtract(goal, o[:3])
     next_o = None
     path_length = 0
@@ -68,7 +69,7 @@ def GCSRollout(env, agent, df, goal, skill_horizon=200, max_path_length=np.inf, 
         path_length += 1
         if max_path_length == np.inf and d:
             break
-        next_o = next_o['observation']
+        # next_o = next_o['observation']
         o = next_o
         if render:
             # img = env.render('rgb_array')
@@ -133,8 +134,6 @@ if __name__ == "__main__":
     goal = [-0.44509227,  -0.76124629,  0.01393204,  0,0,0,0,0]
     goal = [1.24,   0.63,   0.51]
 
-    # goal = [-0.1869375, - 0.09030815, - 0.05750492,  0.56783172, - 0.40038824,  0.16908687,
-    #  0.05848815, - 0.4823759, - 0.,   0.,  0., - 0.,
-    #  - 0.,  0.,  0., - 0.,   0.,]
-    #goal = [0.6,  0.02949391]
+    goal = [  3.,  -5.77272449e-01]
+    #goal = [0.6,  0.02949391] #mountain car
     simulate_policy(args, goal)

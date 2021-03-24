@@ -42,6 +42,7 @@ def simulate_policy2(args, filename='endobs.jpg'):
     # skills = torch.Tensor(np.vstack([-0.3 * np.ones(6), -0.3 * np.ones(6), -0.3 * np.ones(6)])).transpose(1, 0)
     # skills = torch.Tensor(np.arange(-0.9, 0.99,0.1)).reshape(-1,1)
     skills = 0.8*torch.ones([10, 12])
+    #skills = torch.Tensor([[ 0.1080, -0.4160,  0.5176, -0.2920, -0.5953, -0.5421]])
     for skill in skills:
         skill = policy.stochastic_policy.skill_space.sample()
         print(skill)
