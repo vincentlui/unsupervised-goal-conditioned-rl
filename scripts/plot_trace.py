@@ -3,13 +3,13 @@ import matplotlib.pyplot as plt
 import argparse
 import gym
 import numpy as np
-from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv, GoalToNormalEnv
 from rlkit.envs.navigation2d.navigation2d import Navigation2d
 from rlkit.envs.mujoco.ant import AntEnv
 from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 from rlkit.samplers.util import DIAYNRollout as rollout
 from rlkit.samplers.rollout_functions import hierachical_rollout, hierachical_rollout2
-
+import cv2
 
 def simulate_policy(args):
     data = torch.load(args.file, map_location='cpu')
@@ -28,34 +28,33 @@ def simulate_policy(args):
     plt.legend()
     plt.show()
 
-def simulate_policy2(args):
+def simulate_policy2(args, filename='endobs.jpg'):
     data = torch.load(args.file, map_location='cpu')
     policy = data['evaluation/policy']
     envs = NormalizedBoxEnv(Navigation2d())
     # env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
-    # env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
-    env = NormalizedBoxEnv(gym.make('Swimmer-v2'))
-    env = NormalizedBoxEnv(gym.make('MountainCarContinuous-v0'))
-    figure = plt.figure()
-    skills = torch.Tensor(np.vstack([np.arange(-0.9, 0.91, 0.2), 0.5 * np.ones(10)])).transpose(1, 0)
+    env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
+    # env = NormalizedBoxEnv(gym.make('Swimmer-v2'))
+    # env = NormalizedBoxEnv(gym.make('MountainCarContinuous-v0'))
+    # env = GoalToNormalEnv(gym.make('FetchReach-v1'))
+    skills = torch.Tensor(np.vstack([np.arange(-0.9, 0.91, 0.2), 0.8 * np.ones(10)])).transpose(1, 0)
     # skills = torch.Tensor(np.vstack([0.5 * np.ones(10), np.arange(-0.9, 0.91, 0.2)])).transpose(1, 0)
     # skills = torch.Tensor(np.vstack([-0.3 * np.ones(6), -0.3 * np.ones(6), -0.3 * np.ones(6)])).transpose(1, 0)
     # skills = torch.Tensor(np.arange(-0.9, 0.99,0.1)).reshape(-1,1)
-    # skills = 0.8*torch.ones([5, 12])
+    skills = 0.8*torch.ones([10, 12])
     for skill in skills:
         skill = policy.stochastic_policy.skill_space.sample()
+        print(skill)
         policy.stochastic_policy.skill = skill
         path = DIAYNRollout(env, policy, max_path_length=args.H, render=True)
         obs = path['observations']
-        plt.plot(obs[:,0], obs[:,1], label=tuple(skill.numpy()))
-        action = path['actions']
-        print(action)
-        # print(obs[-1])
+        # action = path['actions']
+        # print(action)
+        print(obs[-1])
 
-    plt.xlim([-4,4])
-    plt.ylim([-4,4])
-    # plt.legend()
-    # plt.show()
+    image = path['images'][-1]
+    # cv2.imwrite(filename, image)
+
 
 def simulate_policy3(args):
     data = torch.load(args.file, map_location='cpu')
@@ -75,7 +74,7 @@ def simulate_policy3(args):
     for skill in skills:
         skill = policy.stochastic_policy.skill_space.sample()
         print(skill)
-        path = DIAYNRollout2(env, policy, skill, skill_horizon=3, scale=1, max_path_length=args.H, render=True)
+        path = DIAYNRollout2(env, policy.stochastic_policy, skill, skill_horizon=3, scale=1, max_path_length=args.H, render=True)
         # obs = path['observations']
         # plt.plot(obs[:,0], obs[:,1], label=tuple(skill.numpy()))
         # action = path['actions']
@@ -195,11 +194,12 @@ def DIAYNRollout(env, agent, max_path_length=np.inf, render=False):
     images = []
 
     o = env.reset()
+    # o = o['observation']
     next_o = None
     path_length = 0
     if render:
-        # img = env.render('rgb_array')
-        img = env.render()
+        img = env.render('rgb_array')
+        # img = env.render()
 #        env.viewer.cam.fixedcamid = 0
 #        env.viewer.cam.type = 2
         images.append(img)
@@ -217,10 +217,11 @@ def DIAYNRollout(env, agent, max_path_length=np.inf, render=False):
         path_length += 1
         if max_path_length == np.inf and d:
             break
+        # next_o=next_o['observation']
         o = next_o
         if render:
-            # img = env.render('rgb_array')
-            img = env.render()
+            img = env.render('rgb_array')
+            # img = env.render()
             images.append(img)
 
     actions = np.array(actions)

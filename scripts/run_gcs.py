@@ -3,12 +3,14 @@ import matplotlib.pyplot as plt
 import argparse
 import gym
 import numpy as np
-from rlkit.envs.wrappers import NormalizedBoxEnv
+from rlkit.envs.wrappers import NormalizedBoxEnv, GoalToNormalEnv
 from rlkit.envs.navigation2d.navigation2d import Navigation2d
 from rlkit.envs.mujoco.ant import AntEnv
 from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 from rlkit.samplers.util import DIAYNRollout as rollout
 from rlkit.samplers.rollout_functions import hierachical_rollout, hierachical_rollout2
+from rlkit.envs.fetch.reach import FetchReachEnv
+import cv2
 
 
 def simulate_policy(args, goal):
@@ -18,19 +20,15 @@ def simulate_policy(args, goal):
     # env = NormalizedBoxEnv(Navigation2d())
     # env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
     # env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
-    env = NormalizedBoxEnv(gym.make('Swimmer-v2'))
-    o = env.reset()
-    goal = np.subtract(goal, o)
+    # env = NormalizedBoxEnv(gym.make('Swimmer-v2'))
+    # env = NormalizedBoxEnv(gym.make('MountainCarContinuous-v0'))
+    env = GoalToNormalEnv(gym.make('FetchReach-v1'))
+    env = GoalToNormalEnv(FetchReachEnv())
     path = GCSRollout(env, policy, df, goal, max_path_length=args.H, render=True)
-    # obs = path['observations']
-    # plt.plot(obs[:,0], obs[:,1], label=tuple(skill.numpy()))
+    write_vid(path)
+    env.close()
 
-    # plt.xlim([0,1])
-    # plt.ylim([0,1])
-    # plt.legend()
-    # plt.show()
-
-def GCSRollout(env, agent, df, goal, skill_horizon=10, max_path_length=np.inf, render=False):
+def GCSRollout(env, agent, df, goal, skill_horizon=200, max_path_length=np.inf, render=False):
     observations = []
     actions = []
     rewards = []
@@ -39,17 +37,23 @@ def GCSRollout(env, agent, df, goal, skill_horizon=10, max_path_length=np.inf, r
     env_infos = []
     images = []
 
-    o = env.reset()
+    o_env = env.reset()
+    o = o_env['observation']
+    print(o_env['desired_goal'])
+    goal = o_env['desired_goal']
+    # goal = np.subtract(goal, o[:3])
     next_o = None
     path_length = 0
     if render:
-        img = env.render('rgb_array')
+        # img = env.render('rgb_array')
+        img = env.render(mode= 'rgb_array',width=1900,height=860)
 #        env.viewer.cam.fixedcamid = 0
 #        env.viewer.cam.type = 2
         images.append(img)
 
     df_input = torch.Tensor(np.concatenate([o, goal]))
     skill = df(df_input).mean
+    print(skill)
     agent.stochastic_policy.skill = skill.detach().numpy()
 
     while path_length < max_path_length:
@@ -64,9 +68,11 @@ def GCSRollout(env, agent, df, goal, skill_horizon=10, max_path_length=np.inf, r
         path_length += 1
         if max_path_length == np.inf and d:
             break
+        next_o = next_o['observation']
         o = next_o
         if render:
-            img = env.render('rgb_array')
+            # img = env.render('rgb_array')
+            img = env.render(mode= 'rgb_array',width=1900,height=860)
             images.append(img)
         if path_length % skill_horizon == 0:
             df_input = torch.Tensor(np.concatenate([o, goal]))
@@ -97,6 +103,19 @@ def GCSRollout(env, agent, df, goal, skill_horizon=10, max_path_length=np.inf, r
         images=images
     )
 
+def write_vid(path, filename='gcs.avi'):
+    video = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30,
+                            (1900, 860))
+
+    for i, img in enumerate(path['images']):
+        # print(i)
+        print(img.shape)
+        video.write(img[:, :, ::-1].astype(np.uint8))
+        #                cv2.imwrite("frames/diayn_bipedal_walker_hardcore.avi/%06d.png" % index, img[:,:,::-1])
+
+    video.release()
+    print("wrote video")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -107,11 +126,15 @@ if __name__ == "__main__":
     parser.add_argument('--gpu', action='store_true')
     args = parser.parse_args()
     goal = [ 0.85640258, -1.51874102,  1.07693566,  0.02949487, -0.0969029,   0.13652097, -0.23478749,  0.13588686] #N
-    goal = [-1.33639694,  0.90047344,  1.22487349, -0.21544459, -0.13565433 , 0.33489104, -0.44654661, -0.05634518] #n
-    goal = [ 1.35731238, -1.74397825, -0.30489173, -0.07217514,  0.0074444,  -0.14156388, 0.07849566,  0.2556606 ] # v
-    goal = [-1., 1., 1., -0., 0., -0., 0., 0.]  # v
-    # goal = [ 1.35731238, -1.74397825, -0.30489173, -0.,  0.,  -0., 0.,  0. ]
+    # goal = [-1.33639694,  0.90047344,  1.22487349, -0.21544459, -0.13565433 , 0.33489104, -0.44654661, -0.05634518] #n
+    # goal = [ 1.35731238, -1.74397825, -0.30489173, -0.07217514,  0.0074444,  -0.14156388, 0.07849566,  0.2556606 ] # v
+    goal = [-8.07507281e-01, - 2.30535072e-01,   1.74625024e+00, - 3.63259100e-03, 1.61476225e-02, - 1.63148458e-02, - 1.14411647e-02 ,- 5.57299090e-06]
+    goal = [-1., 0.3, 0.5, -0., 0., -0., 0., 0.,0.,0.]  # v
+    goal = [-0.44509227,  -0.76124629,  0.01393204,  0,0,0,0,0]
+    goal = [1.24,   0.63,   0.51]
+
     # goal = [-0.1869375, - 0.09030815, - 0.05750492,  0.56783172, - 0.40038824,  0.16908687,
     #  0.05848815, - 0.4823759, - 0.,   0.,  0., - 0.,
     #  - 0.,  0.,  0., - 0.,   0.,]
+    #goal = [0.6,  0.02949391]
     simulate_policy(args, goal)

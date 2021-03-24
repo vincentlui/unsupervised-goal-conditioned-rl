@@ -197,3 +197,6 @@ class MakeDeterministic(Policy):
     def get_action(self, observation):
         return self.stochastic_policy.get_action(observation,
                                                  deterministic=True)
+
+    def set_skill(self, skill):
+        self.stochastic_policy.set_skill(skill)

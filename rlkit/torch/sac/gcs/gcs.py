@@ -146,12 +146,13 @@ class GCSTrainer(TorchTrainer):
         """
         DF Loss and Intrinsic Reward
         """
-        df_input = torch.cat([obs, skill_goals-cur_states], dim=1)
+        # df_input = torch.cat([obs, skill_goals-cur_states], dim=1)
+        df_input = torch.cat([obs, skill_goals], dim=1)
         # df_input = cur_states - skill_goals
         df_distribution = self.df(df_input)
         log_likelihood = df_distribution.log_prob(skills).view(-1,1)
         importance_weight = self._calc_importance_weight(self.policy.log_prob(obs, skills, actions), log_probs_old)
-        rewards = log_likelihood + torch.log(ptu.FloatTensor([2**self.policy.skill_dim]))
+        rewards = log_likelihood #+ torch.log(ptu.FloatTensor([2**self.policy.skill_dim]))
         # rewards = torch.log(1 + torch.exp(log_likelihood)).view(-1, 1)
         # rewards = self._calc_reward(cur_states, skill_goals-cur_states, skills)
         # df_loss = -log_likelihood.mean()
