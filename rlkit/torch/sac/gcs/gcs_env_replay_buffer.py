@@ -1,4 +1,6 @@
 from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
+from rlkit.data_management.replay_buffer import ReplayBuffer
+from collections import OrderedDict
 import numpy as np
 
 class GCSEnvReplayBuffer(EnvReplayBuffer):
@@ -119,3 +121,84 @@ class GCSEnvReplayBuffer(EnvReplayBuffer):
             assert key not in batch.keys()
             batch[key] = self._env_infos[key][indices]
         return batch
+
+
+class GCSGoalEnvReplayBuffer(ReplayBuffer):
+    def __init__(
+            self,
+            max_replay_buffer_size,
+            env,
+            skill_dim,
+            goal_dim,
+            env_info_sizes=None,
+    ):
+        """
+        :param max_replay_buffer_size:
+        :param env:
+        """
+        self.normal_buffer = GCSEnvReplayBuffer(max_replay_buffer_size, env, skill_dim, goal_dim)
+        self.goal_buffer = GCSEnvReplayBuffer(max_replay_buffer_size, env, skill_dim, goal_dim)
+        # self.skill_dim = skill_dim
+        # self.goal_dim = goal_dim
+        # self._skill = np.zeros((max_replay_buffer_size, skill_dim))
+        # self._cur_state = np.zeros((max_replay_buffer_size, goal_dim))
+        # self._next_state = np.zeros((max_replay_buffer_size, goal_dim))
+        # self._skill_goal = np.zeros((max_replay_buffer_size, goal_dim))
+        # self._log_prob = np.zeros((max_replay_buffer_size, 1))
+        # # self._skill_steps = np.zeros((max_replay_buffer_size, 1))
+        #
+        #
+        # super().__init__(
+        #     max_replay_buffer_size=max_replay_buffer_size,
+        #     env=env,
+        #     env_info_sizes=env_info_sizes
+        # )
+    def add_paths(self, paths):
+        for path in paths:
+            start_state = path["current_states"][0]
+            end_state = path['skill_goals'][0]
+            self.add_path(path, (end_state - start_state < 1e-2).all())
+
+    def add_path(self, path, normal=True):
+        if normal:
+            self.normal_buffer.add_path(path)
+        else:
+            self.goal_buffer.add_path(path)
+        self.terminate_episode()
+
+    def add_sample(self, observation, action, reward, terminal,
+                   next_observation, agent_info, **kwargs):
+        pass
+
+    def random_batch(self, batch_size):
+        indices = np.random.randint(0, self.num_steps_can_sample(), batch_size)
+        num_normal_sample = (indices < self.normal_buffer.num_steps_can_sample()).sum()
+        num_goal_sample = batch_size-num_normal_sample
+        if num_normal_sample == 0:
+            return self.goal_buffer.random_batch(num_goal_sample)
+        if num_goal_sample == 0:
+            return self.normal_buffer.random_batch(num_normal_sample)
+
+        batch_normal = self.normal_buffer.random_batch(num_normal_sample)
+        batch_goal = self.goal_buffer.random_batch(num_goal_sample)
+
+        return dict_concat(batch_normal, batch_goal)
+
+    def terminate_episode(self):
+        pass
+
+    def num_steps_can_sample(self):
+        return self.normal_buffer.num_steps_can_sample() + self.goal_buffer.num_steps_can_sample()
+
+    def get_diagnostics(self):
+        return OrderedDict([
+            ('normal_size', self.normal_buffer.num_steps_can_sample()),
+            ('goal_size', self.goal_buffer.num_steps_can_sample()),
+        ])
+
+
+def dict_concat(d1, d2):
+    d = {}
+    for k in d1:
+        d[k] = np.vstack([d1[k],d2[k]])
+    return d

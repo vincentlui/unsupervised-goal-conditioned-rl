@@ -10,6 +10,7 @@ from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 from rlkit.samplers.util import DIAYNRollout as rollout
 from rlkit.samplers.rollout_functions import hierachical_rollout, hierachical_rollout2
 from rlkit.envs.fetch.reach import FetchReachEnv
+from rlkit.envs.fetch.push import FetchPushEnv
 import cv2
 
 
@@ -24,6 +25,7 @@ def simulate_policy(args, goal):
     # env = NormalizedBoxEnv(gym.make('MountainCarContinuous-v0'))
     # env = GoalToNormalEnv(gym.make('FetchReach-v1'))
     # env = GoalToNormalEnv(FetchReachEnv())
+    env = GoalToNormalEnv(FetchPushEnv())
     path = GCSRollout(env, policy, df, goal, max_path_length=args.H, render=True)
     # write_vid(path)
     env.close()
@@ -39,9 +41,9 @@ def GCSRollout(env, agent, df, goal, skill_horizon=200, max_path_length=np.inf, 
 
     o_env = env.reset()
     o = o_env
-    # o = o_env['observation']
-    # print(o_env['desired_goal'])
-    # goal = o_env['desired_goal']
+    o = o_env['observation']
+    print(o_env['desired_goal'])
+    goal = o_env['desired_goal']
     # goal = np.subtract(goal, o[:3])
     next_o = None
     path_length = 0
@@ -69,7 +71,7 @@ def GCSRollout(env, agent, df, goal, skill_horizon=200, max_path_length=np.inf, 
         path_length += 1
         if max_path_length == np.inf and d:
             break
-        # next_o = next_o['observation']
+        next_o = next_o['observation']
         o = next_o
         if render:
             # img = env.render('rgb_array')

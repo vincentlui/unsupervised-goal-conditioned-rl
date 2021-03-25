@@ -7,7 +7,7 @@ from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 
 import rlkit.torch.pytorch_util as ptu
 # from rlkit.torch.sac.diayn.diayn_env_replay_buffer import DIAYNEnvReplayBuffer
-from rlkit.torch.sac.gcs.gcs_env_replay_buffer import GCSEnvReplayBuffer
+from rlkit.torch.sac.gcs.gcs_env_replay_buffer import GCSEnvReplayBuffer, GCSGoalEnvReplayBuffer
 from rlkit.envs.wrappers import NormalizedBoxEnv, GoalToNormalEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.diayn.diayn_path_collector import DIAYNMdpPathCollector
@@ -90,7 +90,13 @@ def experiment(variant, args):
         target_obs_name=variant['target_obs_name']
         # render=True
     )
-    replay_buffer = GCSEnvReplayBuffer(
+    # replay_buffer = GCSEnvReplayBuffer(
+    #     variant['replay_buffer_size'],
+    #     expl_env,
+    #     skill_dim,
+    #     ends_dim,
+    # )
+    replay_buffer = GCSGoalEnvReplayBuffer(
         variant['replay_buffer_size'],
         expl_env,
         skill_dim,
@@ -154,7 +160,7 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS",
         version="normal",
-        layer_size=200,
+        layer_size=512,
         replay_buffer_size=int(1E5),
         exclude_obs_ind=None,
         goal_ind=[3,4,5],
@@ -164,8 +170,8 @@ if __name__ == "__main__":
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
             num_eval_steps_per_epoch=0,
-            num_trains_per_train_loop=200,
-            num_expl_steps_per_train_loop=600,
+            num_trains_per_train_loop=500,
+            num_expl_steps_per_train_loop=1000,
             num_trains_discriminator_per_train_loop=8,
             min_num_steps_before_training=0,
             max_path_length=200,
