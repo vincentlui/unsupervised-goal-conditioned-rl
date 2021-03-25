@@ -175,7 +175,7 @@ if __name__ == "__main__":
             num_trains_discriminator_per_train_loop=8,
             min_num_steps_before_training=0,
             max_path_length=200,
-            batch_size=128, #256
+            batch_size=256, #256
         )
         ,
         trainer_kwargs=dict(
