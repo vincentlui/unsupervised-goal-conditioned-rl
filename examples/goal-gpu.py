@@ -4,6 +4,7 @@ import torch
 from envs.navigation2d.navigation2d import Navigation2d
 from rlkit.envs.mujoco.ant import AntEnv
 from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
+from rlkit.envs.mujoco.humanoid import HumanoidEnv
 
 import rlkit.torch.pytorch_util as ptu
 # from rlkit.torch.sac.diayn.diayn_env_replay_buffer import DIAYNEnvReplayBuffer
@@ -90,18 +91,18 @@ def experiment(variant, args):
         target_obs_name=variant['target_obs_name']
         # render=True
     )
-    # replay_buffer = GCSEnvReplayBuffer(
-    #     variant['replay_buffer_size'],
-    #     expl_env,
-    #     skill_dim,
-    #     ends_dim,
-    # )
-    replay_buffer = GCSGoalEnvReplayBuffer(
+    replay_buffer = GCSEnvReplayBuffer(
         variant['replay_buffer_size'],
         expl_env,
         skill_dim,
         ends_dim,
     )
+    # replay_buffer = GCSGoalEnvReplayBuffer(
+    #     variant['replay_buffer_size'],
+    #     expl_env,
+    #     skill_dim,
+    #     ends_dim,
+    # )
     trainer = GCSTrainer(
         env=eval_env,
         policy=policy,
@@ -136,6 +137,8 @@ def get_env(name):
         return NormalizedBoxEnv(AntEnv(expose_all_qpos=False)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
     elif name == 'Half-cheetah':
         return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
+    elif name == 'Humanoid':
+        return NormalizedBoxEnv(HumanoidEnv(expose_all_qpos=False)), NormalizedBoxEnv(HumanoidEnv(expose_all_qpos=False))
     elif name == 'FetchReach-v1':
         return GoalToNormalEnv(gym.make(name)), GoalToNormalEnv(gym.make(name))
     elif name == 'FetchPush-v1':
@@ -163,8 +166,8 @@ if __name__ == "__main__":
         layer_size=300,
         replay_buffer_size=int(1E5),
         exclude_obs_ind=None,
-        goal_ind=[3,4,5],
-        target_obs_name='observation',
+        goal_ind=None,#[3,4,5],
+        target_obs_name=None,#'observation',
         skill_horizon=40,
         batch_norm=False,
         algorithm_kwargs=dict(
@@ -186,7 +189,7 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             df_lr=3E-4,
             reward_scale=1,
-            use_automatic_entropy_tuning=True,
+            use_automatic_entropy_tuning=False,
         ),
     )
     setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
