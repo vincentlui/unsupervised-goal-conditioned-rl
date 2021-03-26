@@ -20,7 +20,7 @@ def simulate_policy(args, goal):
     df = data['trainer/df']
     # env = NormalizedBoxEnv(Navigation2d())
     # env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
-    env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
+    # env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
     # env = NormalizedBoxEnv(gym.make('Swimmer-v2'))
     # env = NormalizedBoxEnv(gym.make('MountainCarContinuous-v0'))
     # env = GoalToNormalEnv(gym.make('FetchReach-v1'))
@@ -44,7 +44,7 @@ def GCSRollout(env, agent, df, goal, skill_horizon=200, max_path_length=np.inf, 
     o = o_env['observation']
     print(o_env['desired_goal'])
     goal = o_env['desired_goal']
-    # goal = np.subtract(goal, o[:3])
+    goal = np.subtract(goal, o[:3])
     next_o = None
     path_length = 0
     if render:

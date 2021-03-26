@@ -168,7 +168,7 @@ if __name__ == "__main__":
         exclude_obs_ind=None,
         goal_ind=None,#[3,4,5],
         target_obs_name=None,#'observation',
-        skill_horizon=40,
+        skill_horizon=200,
         batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
@@ -177,7 +177,7 @@ if __name__ == "__main__":
             num_expl_steps_per_train_loop=600,
             num_trains_discriminator_per_train_loop=8,
             min_num_steps_before_training=0,
-            max_path_length=40,
+            max_path_length=200,
             batch_size=256, #256
         )
         ,
