@@ -159,7 +159,7 @@ if __name__ == "__main__":
         algorithm="GCS",
         version="normal",
         layer_size=300,
-        replay_buffer_size=int(1E6),
+        replay_buffer_size=int(1E5),
         exclude_obs_ind=None,
         goal_ind=[0,1,2],
         target_obs_name='observation',
