@@ -43,8 +43,8 @@ def GCSRollout(env, agent, df, goal, skill_horizon=200, max_path_length=np.inf, 
     o = o_env
     o = o_env['observation']
     print(o_env['desired_goal'])
-    goal = o_env['desired_goal']
-    goal = np.subtract(goal, o[:3])
+    goal = np.concatenate([o_env['desired_goal'], [0.] * 7])
+    # goal = np.subtract(goal, o[:3])
     next_o = None
     path_length = 0
     if render:

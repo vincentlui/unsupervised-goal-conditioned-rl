@@ -35,10 +35,10 @@ def simulate_policy2(args, filename='endobs.jpg'):
     envs = NormalizedBoxEnv(Navigation2d())
     # env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
     # env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
-    env = NormalizedBoxEnv(HumanoidEnv(expose_all_qpos=False))
+    # env = NormalizedBoxEnv(HumanoidEnv(expose_all_qpos=False))
     # env = NormalizedBoxEnv(gym.make('Swimmer-v2'))
     # env = NormalizedBoxEnv(gym.make('MountainCarContinuous-v0'))
-    # env = GoalToNormalEnv(gym.make('FetchReach-v1'))
+    env = GoalToNormalEnv(gym.make('FetchReach-v1'))
     # env = GoalToNormalEnv(gym.make('FetchPush-v1'))
     skills = torch.Tensor(np.vstack([np.arange(-0.9, 0.91, 0.2), 0.8 * np.ones(10)])).transpose(1, 0)
     # skills = torch.Tensor(np.vstack([0.5 * np.ones(10), np.arange(-0.9, 0.91, 0.2)])).transpose(1, 0)
@@ -198,7 +198,7 @@ def DIAYNRollout(env, agent, max_path_length=np.inf, render=False):
     images = []
 
     o = env.reset()
-    # o = o['observation']
+    o = o['observation']
     next_o = None
     path_length = 0
     if render:
@@ -221,7 +221,7 @@ def DIAYNRollout(env, agent, max_path_length=np.inf, render=False):
         path_length += 1
         if max_path_length == np.inf and d:
             break
-        # next_o=next_o['observation']
+        next_o=next_o['observation']
         o = next_o
         if render:
             img = env.render('rgb_array')

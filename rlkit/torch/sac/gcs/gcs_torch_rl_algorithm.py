@@ -78,12 +78,12 @@ class GCSTorchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 range(self._start_epoch, self.num_epochs),
                 save_itrs=True,
         ):
-            # self.eval_data_collector.collect_new_paths(
-            #     self.max_path_length,
-            #     self.num_eval_steps_per_epoch,
-            #     discard_incomplete_paths=True,
-            # )
-            # gt.stamp('evaluation sampling')
+            self.eval_data_collector.collect_new_paths(
+                self.max_path_length,
+                self.num_eval_steps_per_epoch,
+                discard_incomplete_paths=True,
+            )
+            gt.stamp('evaluation sampling')
 
             # set policy  for one epoch
             self.policy.skill_reset()

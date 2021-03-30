@@ -6,6 +6,7 @@ from rlkit.torch.core import eval_np
 from rlkit.envs.env_utils import get_dim
 from rlkit.torch import pytorch_util as ptu
 import numpy as np
+import rlkit.torch.pytorch_util as ptu
 
 class GCSMdpPathCollector(MdpPathCollector):
     def __init__(self,
@@ -744,6 +745,149 @@ class GCSMdpPathCollector3(MdpPathCollector):
 
     def get_epoch_goal_paths(self):
         return self._goal_paths
+
+class GCSPathCollector(MdpPathCollector):
+    def __init__(self,
+                env,
+                policy,
+                df,
+                max_num_epoch_paths_saved=None,
+                render=False,
+                render_kwargs=None,
+                exclude_obs_ind=None,
+                goal_ind=None,
+                target_obs_name=None,
+                skill_horizon=1):
+
+        super().__init__(
+            env,
+            policy,
+            max_num_epoch_paths_saved,
+            render,
+            render_kwargs,
+        )
+        self.df = df
+        self.goal_ind = goal_ind
+        self.skill_horizon = skill_horizon
+        self.exclude_obs_ind = exclude_obs_ind
+        self.target_obs_name = target_obs_name
+        if exclude_obs_ind:
+            obs_len = get_dim(env.observation_space)
+            self.obs_ind = get_indices(obs_len, exclude_obs_ind)
+
+    def collect_new_paths(
+            self,
+            max_path_length,
+            num_steps,
+            discard_incomplete_paths,
+    ):
+        paths = []
+        num_steps_collected = 0
+        while num_steps_collected < num_steps:
+            max_path_length_this_loop = min(  # Do not go over num_steps
+                max_path_length,
+                num_steps - num_steps_collected,
+            )
+
+            path = GCSRollout(
+                env = self._env,
+                agent=self._policy,
+                df=self.df,
+                max_path_length=max_path_length_this_loop,
+                render=self._render
+            )
+            path_len = len(path['actions'])
+            if (
+                    path_len != max_path_length
+                    and not path['terminals'][-1]
+                    and discard_incomplete_paths
+            ):
+                break
+            num_steps_collected += path_len
+            paths.append(path)
+        self._num_paths_total += len(paths)
+        self._num_steps_total += num_steps_collected
+        self._epoch_paths.extend(paths)
+        return paths
+
+    # def get_diagnostics(self):
+    #     total = 0.
+    #     success_count = 1.
+    #     for path in self._epoch_paths:
+    #         success_count += path['env_infos'][-1]['is_success']
+    #         total += 1
+    #
+    #     return {'success rate': success_count/total}
+
+
+
+def GCSRollout(env, agent, df, max_path_length=np.inf, render=False):
+    observations = []
+    actions = []
+    rewards = []
+    terminals = []
+    agent_infos = []
+    env_infos = []
+    images = []
+
+    o_env = env.reset()
+    o = o_env['observation']
+    goal = o_env['desired_goal']
+    next_o = None
+    path_length = 0
+    if render:
+        img = env.render('rgb_array')
+        # img = env.render(mode= 'rgb_array',width=1900,height=860)
+#        env.viewer.cam.fixedcamid = 0
+#        env.viewer.cam.type = 2
+        images.append(img)
+
+    df_input = ptu.FloatTensor(np.concatenate([o, goal]))
+    skill = df(df_input).mean
+    agent.set_skill(ptu.get_numpy(skill))
+
+    while path_length < max_path_length:
+        a, agent_info = agent.get_action(o)
+        next_o, r, d, env_info = env.step(a)
+        observations.append(o)
+        rewards.append(r)
+        terminals.append(d)
+        actions.append(a)
+        agent_infos.append(agent_info)
+        env_infos.append(env_info)
+        path_length += 1
+        if max_path_length == np.inf and d:
+            break
+        next_o = next_o['observation']
+        o = next_o
+        if render:
+            img = env.render('rgb_array')
+            # img = env.render(mode= 'rgb_array',width=1900,height=860)
+            images.append(img)
+
+    actions = np.array(actions)
+    if len(actions.shape) == 1:
+        actions = np.expand_dims(actions, 1)
+    observations = np.array(observations)
+    if len(observations.shape) == 1:
+        observations = np.expand_dims(observations, 1)
+        next_o = np.array([next_o])
+    next_observations = np.vstack(
+        (
+            observations[1:, :],
+            np.expand_dims(next_o, 0)
+        )
+    )
+    return dict(
+        observations=observations,
+        actions=actions,
+        rewards=np.array(rewards).reshape(-1, 1),
+        next_observations=next_observations,
+        terminals=np.array(terminals).reshape(-1, 1),
+        agent_infos=agent_infos,
+        env_infos=env_infos,
+        images=images
+    )
 
 def get_indices(length, exclude_ind):
     length = np.arange(length)

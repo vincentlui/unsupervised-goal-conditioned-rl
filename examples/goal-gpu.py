@@ -7,21 +7,15 @@ from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 from rlkit.envs.mujoco.humanoid import HumanoidEnv
 
 import rlkit.torch.pytorch_util as ptu
-# from rlkit.torch.sac.diayn.diayn_env_replay_buffer import DIAYNEnvReplayBuffer
 from rlkit.torch.sac.gcs.gcs_env_replay_buffer import GCSEnvReplayBuffer, GCSGoalEnvReplayBuffer
 from rlkit.envs.wrappers import NormalizedBoxEnv, GoalToNormalEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.torch.sac.diayn.diayn_path_collector import DIAYNMdpPathCollector
-from rlkit.samplers.data_collector.step_collector import MdpStepCollector
-# from rlkit.torch.sac.diayn.diayn import DIAYNTrainer
 from rlkit.torch.sac.gcs.gcs import GCSTrainer
-from rlkit.torch.sac.gcs.gcs2 import GCSTrainer2
-from rlkit.torch.networks import FlattenMlp
-from rlkit.torch.sac.diayn.diayn_torch_online_rl_algorithm import DIAYNTorchOnlineRLAlgorithm
 from rlkit.torch.sac.gcs.skill_discriminator import SkillDiscriminator
 from rlkit.torch.sac.gcs.gcs_torch_online_rl_algorithm import GCSTorchOnlineRLAlgorithm
 from rlkit.torch.sac.gcs.gcs_torch_rl_algorithm import GCSTorchRLAlgorithm
-from rlkit.torch.sac.gcs.gcs_path_collector import GCSMdpPathCollector, GCSMdpPathCollector3
+from rlkit.torch.sac.gcs.gcs_path_collector import GCSMdpPathCollector, GCSPathCollector
 from rlkit.torch.sac.gcs.policies import UniformSkillTanhGaussianPolicy, MakeDeterministic
 from rlkit.torch.sac.gcs.networks import FlattenBNMlp
 
@@ -78,9 +72,10 @@ def experiment(variant, args):
         high=[1] * skill_dim,
     )
     eval_policy = MakeDeterministic(policy)
-    eval_path_collector = DIAYNMdpPathCollector(
+    eval_path_collector = GCSPathCollector(
         eval_env,
         eval_policy,
+        df=df,
     )
     expl_step_collector = GCSMdpPathCollector(
         expl_env,
@@ -163,21 +158,21 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS",
         version="normal",
-        layer_size=512,
-        replay_buffer_size=int(1E5),
+        layer_size=300,
+        replay_buffer_size=int(1E6),
         exclude_obs_ind=None,
-        goal_ind=None,#[3,4,5],
-        target_obs_name=None,#'observation',
-        skill_horizon=100,
+        goal_ind=[0,1,2],
+        target_obs_name='observation',
+        skill_horizon=50,
         batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
-            num_eval_steps_per_epoch=0,
-            num_trains_per_train_loop=300,
-            num_expl_steps_per_train_loop=600,
+            num_eval_steps_per_epoch=2500,
+            num_trains_per_train_loop=500,
+            num_expl_steps_per_train_loop=1000,
             num_trains_discriminator_per_train_loop=8,
-            min_num_steps_before_training=2000,
-            max_path_length=100,
+            min_num_steps_before_training=0,
+            max_path_length=50,
             batch_size=256, #256
         )
         ,
