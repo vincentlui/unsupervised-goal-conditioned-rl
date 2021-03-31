@@ -5,6 +5,8 @@ from envs.navigation2d.navigation2d import Navigation2d
 from rlkit.envs.mujoco.ant import AntEnv
 from rlkit.envs.mujoco.half_cheetah import HalfCheetahEnv
 from rlkit.envs.mujoco.humanoid import HumanoidEnv
+from rlkit.envs.fetch.reach import FetchReachEnv
+
 
 import rlkit.torch.pytorch_util as ptu
 from rlkit.torch.sac.gcs.gcs_env_replay_buffer import GCSEnvReplayBuffer, GCSGoalEnvReplayBuffer
@@ -135,7 +137,7 @@ def get_env(name):
     elif name == 'Humanoid':
         return NormalizedBoxEnv(HumanoidEnv(expose_all_qpos=False)), NormalizedBoxEnv(HumanoidEnv(expose_all_qpos=False))
     elif name == 'FetchReach-v1':
-        return GoalToNormalEnv(gym.make(name)), GoalToNormalEnv(gym.make(name))
+        return GoalToNormalEnv(FetchReachEnv()), GoalToNormalEnv(FetchReachEnv(reward_type='dense'))
     elif name == 'FetchPush-v1':
         return GoalToNormalEnv(gym.make(name)), GoalToNormalEnv(gym.make(name))
 
@@ -158,22 +160,21 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS",
         version="normal",
-        layer_size=300,
-        replay_buffer_size=int(1E6),
+        layer_size=128,
+        replay_buffer_size=int(1E5),
         exclude_obs_ind=None,
         goal_ind=[0,1,2],
         target_obs_name='observation',
-        skill_horizon=50,
+        skill_horizon=40,
         batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
-            num_eval_steps_per_epoch=2500,
-            num_trains_per_train_loop=500,
-            num_expl_steps_per_train_loop=1000,
-            num_trains_discriminator_per_train_loop=8,
-            min_num_steps_before_training=0,
-            max_path_length=50,
-            batch_size=256, #256
+            num_eval_steps_per_epoch=400,
+            num_trains_per_train_loop=200,
+            num_expl_steps_per_train_loop=600,
+            min_num_steps_before_training=2000,
+            max_path_length=40,
+            batch_size=128, #256
         )
         ,
         trainer_kwargs=dict(
@@ -184,10 +185,10 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             df_lr=3E-4,
             reward_scale=1,
-            use_automatic_entropy_tuning=False,
+            use_automatic_entropy_tuning=True,
         ),
     )
-    # setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
-    #         snapshot_gap=100,)
+    setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
+            snapshot_gap=100,)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant, args)

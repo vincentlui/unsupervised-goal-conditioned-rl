@@ -810,14 +810,19 @@ class GCSPathCollector(MdpPathCollector):
         self._epoch_paths.extend(paths)
         return paths
 
-    # def get_diagnostics(self):
-    #     total = 0.
-    #     success_count = 1.
-    #     for path in self._epoch_paths:
-    #         success_count += path['env_infos'][-1]['is_success']
-    #         total += 1
-    #
-    #     return {'success rate': success_count/total}
+    def get_diagnostics(self):
+        total = 0.
+        success_count = 0.
+        dist_to_goal = 0.
+        for path in self._epoch_paths:
+            success_count += path['env_infos'][-1]['is_success']
+            total += 1
+            dist_to_goal += -path['rewards'][-1][0]
+
+        return {
+            'success rate': success_count/total,
+            'distance to goal': dist_to_goal/total,
+        }
 
 
 

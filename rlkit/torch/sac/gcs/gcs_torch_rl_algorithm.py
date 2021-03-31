@@ -26,7 +26,6 @@ class GCSTorchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             num_eval_steps_per_epoch,
             num_expl_steps_per_train_loop,
             num_trains_per_train_loop,
-            num_trains_discriminator_per_train_loop,
             num_train_loops_per_epoch=1,
             min_num_steps_before_training=0,
             num_epoch_before_goal_condition_sampling=20,
@@ -47,7 +46,6 @@ class GCSTorchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         self.num_eval_steps_per_epoch = num_eval_steps_per_epoch
         self.num_trains_per_train_loop = num_trains_per_train_loop
         self.num_train_loops_per_epoch = num_train_loops_per_epoch
-        self.num_trains_discriminator_per_train_loop = num_trains_discriminator_per_train_loop
         self.num_expl_steps_per_train_loop = num_expl_steps_per_train_loop
         self.min_num_steps_before_training = min_num_steps_before_training
         self.num_epoch_before_goal_condition_sampling = num_epoch_before_goal_condition_sampling
@@ -85,9 +83,6 @@ class GCSTorchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             )
             gt.stamp('evaluation sampling')
 
-            # set policy  for one epoch
-            self.policy.skill_reset()
-
             for _ in range(self.num_train_loops_per_epoch):
                 self.expl_data_collector.collect_new_paths(
                     self.max_path_length,
@@ -111,9 +106,7 @@ class GCSTorchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                     train_data = self.replay_buffer.random_batch(
                         self.batch_size)
                     self.trainer.train(train_data)
-                # train_data = self.replay_buffer.random_batch(
-                #     self.batch_size)
-                # self.trainer.train(train_data)
+
                 gt.stamp('training', unique=False)
                 self.training_mode(False)
 

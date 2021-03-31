@@ -173,7 +173,7 @@ class GCSTrainer(TorchTrainer):
             alpha = self.log_alpha.exp()
         else:
             alpha_loss = 0
-            alpha = 0.01
+            alpha = 0.1
 
         q_new_actions = torch.min(
             self.qf1(obs_skills, new_obs_actions),
