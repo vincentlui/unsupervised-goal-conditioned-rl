@@ -167,9 +167,9 @@ if __name__ == "__main__":
         batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
-            num_eval_steps_per_epoch=2500,
-            num_trains_per_train_loop=500,
-            num_expl_steps_per_train_loop=1000,
+            num_eval_steps_per_epoch=500,
+            num_trains_per_train_loop=200,
+            num_expl_steps_per_train_loop=600,
             num_trains_discriminator_per_train_loop=8,
             min_num_steps_before_training=0,
             max_path_length=50,
@@ -184,7 +184,7 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             df_lr=3E-4,
             reward_scale=1,
-            use_automatic_entropy_tuning=False,
+            use_automatic_entropy_tuning=True,
         ),
     )
     setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
