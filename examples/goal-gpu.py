@@ -133,7 +133,7 @@ def get_env(name):
     elif name == 'Ant':
         return NormalizedBoxEnv(AntEnv(expose_all_qpos=False)), NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
     elif name == 'Half-cheetah':
-        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
+        return NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False)), NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
     elif name == 'Humanoid':
         return NormalizedBoxEnv(HumanoidEnv(expose_all_qpos=False)), NormalizedBoxEnv(HumanoidEnv(expose_all_qpos=False))
     elif name == 'FetchReach-v1':
@@ -160,20 +160,20 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS",
         version="normal",
-        layer_size=128,
+        layer_size=300,
         replay_buffer_size=int(1E5),
         exclude_obs_ind=None,
         goal_ind=[0,1,2],
         target_obs_name='observation',
-        skill_horizon=40,
+        skill_horizon=50,
         batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
-            num_eval_steps_per_epoch=400,
-            num_trains_per_train_loop=200,
+            num_eval_steps_per_epoch=500,
+            num_trains_per_train_loop=100,
             num_expl_steps_per_train_loop=600,
             min_num_steps_before_training=2000,
-            max_path_length=40,
+            max_path_length=50,
             batch_size=256, #256
         )
         ,
@@ -185,7 +185,7 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             df_lr=3E-4,
             reward_scale=1,
-            use_automatic_entropy_tuning=False,
+            use_automatic_entropy_tuning=True,
         ),
     )
     setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
