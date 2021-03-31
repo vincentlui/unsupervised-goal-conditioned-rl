@@ -139,16 +139,16 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="DIAYN",
         version="normal",
-        layer_size=128,
+        layer_size=300,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
-            num_eval_steps_per_epoch=400,
+            num_eval_steps_per_epoch=500,
             num_trains_per_train_loop=600,
             num_expl_steps_per_train_loop=600,
             min_num_steps_before_training=2000,
-            max_path_length=40,
-            batch_size=128, #256
+            max_path_length=50,
+            batch_size=256
         ),
         trainer_kwargs=dict(
             discount=0.99,
