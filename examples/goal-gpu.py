@@ -170,7 +170,7 @@ if __name__ == "__main__":
         algorithm_kwargs=dict(
             num_epochs=3000, #1000
             num_eval_steps_per_epoch=500,
-            num_trains_per_train_loop=100,
+            num_trains_per_train_loop=600,
             num_expl_steps_per_train_loop=600,
             min_num_steps_before_training=2000,
             max_path_length=50,
