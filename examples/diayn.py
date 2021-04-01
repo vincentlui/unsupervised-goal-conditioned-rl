@@ -125,16 +125,16 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="DIAYN",
         version="normal",
-        layer_size=128,
+        layer_size=300,
         replay_buffer_size=int(1E7),
         algorithm_kwargs=dict(
             num_epochs=10000, #1000
             num_eval_steps_per_epoch=0,
-            num_trains_per_train_loop=1000,
-            num_expl_steps_per_train_loop=1000,
-            min_num_steps_before_training=1000,
-            max_path_length=1000,
-            batch_size=128, #256
+            num_trains_per_train_loop=600,
+            num_expl_steps_per_train_loop=600,
+            min_num_steps_before_training=2000,
+            max_path_length=50,
+            batch_size=256, #256
         ),
         trainer_kwargs=dict(
             discount=0.99,
@@ -148,5 +148,5 @@ if __name__ == "__main__":
     )
     setup_logger('DIAYN_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
             snapshot_gap=100,)
-    # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
+    ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant, args)
