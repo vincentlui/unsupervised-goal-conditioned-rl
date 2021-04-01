@@ -185,7 +185,7 @@ if __name__ == "__main__":
             qf_lr=3E-4,
             df_lr=3E-4,
             reward_scale=1,
-            use_automatic_entropy_tuning=False,
+            use_automatic_entropy_tuning=True,
         ),
     )
     setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
