@@ -172,7 +172,7 @@ if __name__ == "__main__":
             num_eval_steps_per_epoch=500,
             num_trains_per_train_loop=200,
             num_expl_steps_per_train_loop=600,
-            min_num_steps_before_training=2000,
+            min_num_steps_before_training=0,
             max_path_length=50,
             batch_size=128, #256
         )
@@ -188,7 +188,7 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=True,
         ),
     )
-    setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
-            snapshot_gap=100,)
+    # setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
+    #         snapshot_gap=100,)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant, args)

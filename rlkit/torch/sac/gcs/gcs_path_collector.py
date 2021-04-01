@@ -817,7 +817,7 @@ class GCSPathCollector(MdpPathCollector):
         for path in self._epoch_paths:
             success_count += path['env_infos'][-1]['is_success']
             total += 1
-            dist_to_goal += -path['rewards'][-1][0]
+            dist_to_goal += path['rewards'][-1][0] / path['rewards'][0][0]
 
         return {
             'success rate': success_count/total,
