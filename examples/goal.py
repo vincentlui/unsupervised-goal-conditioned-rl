@@ -161,16 +161,16 @@ if __name__ == "__main__":
         algorithm="GCS",
         version="normal",
         layer_size=300,
-        replay_buffer_size=int(1E5),
+        replay_buffer_size=int(6E2),
         exclude_obs_ind=None,
         goal_ind=[0,1,2],
         target_obs_name='observation',
         skill_horizon=50,
         batch_norm=False,
         algorithm_kwargs=dict(
-            num_epochs=3000, #1000
-            num_eval_steps_per_epoch=500,
-            num_trains_per_train_loop=200,
+            num_epochs=6000, #1000
+            num_eval_steps_per_epoch=250,
+            num_trains_per_train_loop=100,
             num_expl_steps_per_train_loop=600,
             min_num_steps_before_training=0,
             max_path_length=50,
@@ -188,7 +188,7 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=True,
         ),
     )
-    # setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
-    #         snapshot_gap=100,)
+    setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
+            snapshot_gap=100,)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant, args)
