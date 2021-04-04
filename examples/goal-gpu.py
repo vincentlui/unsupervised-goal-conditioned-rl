@@ -61,7 +61,7 @@ def experiment(variant, args):
         skill_dim=skill_dim,
         hidden_sizes=[M, M],
         output_activation=torch.tanh,
-        num_components=1,
+        num_components=4,
         batch_norm=False, #variant['batch_norm'],
         # std=[1.] * skill_dim
     )

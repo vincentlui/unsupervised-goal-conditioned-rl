@@ -152,7 +152,7 @@ class GCSTrainer(TorchTrainer):
         df_distribution = self.df(df_input)
         log_likelihood = df_distribution.log_prob(skills).view(-1,1)
         importance_weight = self._calc_importance_weight(self.policy.log_prob(obs, skills, actions), log_probs_old)
-        rewards = torch.clamp(log_likelihood, -50, 50) #+ torch.log(ptu.FloatTensor([2**self.policy.skill_dim]))
+        rewards = torch.clamp(log_likelihood, -20, 20) #+ torch.log(ptu.FloatTensor([2**self.policy.skill_dim]))
         # rewards = torch.log(1 + torch.exp(log_likelihood)).view(-1, 1)
         # rewards = self._calc_reward(cur_states, skill_goals-cur_states, skills)
         # df_loss = -log_likelihood.mean()
