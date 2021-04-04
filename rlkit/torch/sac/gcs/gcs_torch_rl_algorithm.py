@@ -22,6 +22,7 @@ class GCSTorchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
             replay_buffer: ReplayBuffer,
             batch_size,
             max_path_length,
+            eval_max_path_length,
             num_epochs,
             num_eval_steps_per_epoch,
             num_expl_steps_per_train_loop,
@@ -42,6 +43,7 @@ class GCSTorchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
         # self.goal_buffer = goal_buffer
         # self.sd_replay_buffer = sd_replay_buffer
         self.max_path_length = max_path_length
+        self.eval_max_path_length = eval_max_path_length
         self.num_epochs = num_epochs
         self.num_eval_steps_per_epoch = num_eval_steps_per_epoch
         self.num_trains_per_train_loop = num_trains_per_train_loop
@@ -77,7 +79,7 @@ class GCSTorchRLAlgorithm(BaseRLAlgorithm, metaclass=abc.ABCMeta):
                 save_itrs=True,
         ):
             self.eval_data_collector.collect_new_paths(
-                self.max_path_length,
+                self.eval_max_path_length,
                 self.num_eval_steps_per_epoch,
                 discard_incomplete_paths=True,
             )

@@ -173,7 +173,8 @@ if __name__ == "__main__":
             num_trains_per_train_loop=1,
             num_expl_steps_per_train_loop=600,
             min_num_steps_before_training=0,
-            max_path_length=20,
+            max_path_length=200,
+            eval_max_path_length=20,
             batch_size=128, #256
         )
         ,
