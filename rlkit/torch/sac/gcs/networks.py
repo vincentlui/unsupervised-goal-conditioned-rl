@@ -187,10 +187,16 @@ class MixtureSameFamily(Distribution):
         return self._component_distribution
 
     @property
+    # def mean(self):
+    #     probs = self._pad_mixture_dimensions(self.mixture_distribution.probs)
+    #     return torch.sum(probs * self.component_distribution.mean,
+    #                      dim=-1 - self._event_ndims)  # [B, E]
+
     def mean(self):
-        probs = self._pad_mixture_dimensions(self.mixture_distribution.probs)
-        return torch.sum(probs * self.component_distribution.mean,
-                         dim=-1 - self._event_ndims)  # [B, E]
+        probs = self.mixture_distribution.probs.view(-1, 1)
+        means = self.component_distribution.mean
+        return torch.sum(probs * means,
+                      dim=1).view(-1)
 
     @property
     def variance(self):
