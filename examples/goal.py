@@ -57,7 +57,7 @@ def experiment(variant, args):
         batch_norm=variant['batch_norm'],
     )
     df = SkillDiscriminator(
-        input_size=obs_dim + ends_dim,
+        input_size=ends_dim + ends_dim,
         skill_dim=skill_dim,
         hidden_sizes=[M, M],
         output_activation=torch.tanh,
@@ -170,10 +170,10 @@ if __name__ == "__main__":
         algorithm_kwargs=dict(
             num_epochs=6000, #1000
             num_eval_steps_per_epoch=200,
-            num_trains_per_train_loop=1,
+            num_trains_per_train_loop=200,
             num_expl_steps_per_train_loop=600,
             min_num_steps_before_training=0,
-            max_path_length=200,
+            max_path_length=20,
             eval_max_path_length=20,
             batch_size=128, #256
         )
@@ -189,7 +189,7 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=True,
         ),
     )
-    # setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
-    #         snapshot_gap=100,)
+    setup_logger('GOAL_' + str(args.skill_dim) + '_' + args.env, variant=variant,snapshot_mode="gap_and_last",
+            snapshot_gap=100,)
     # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant, args)

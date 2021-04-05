@@ -847,7 +847,7 @@ def GCSRollout(env, agent, df, max_path_length=np.inf, render=False):
 #        env.viewer.cam.type = 2
         images.append(img)
 
-    df_input = ptu.FloatTensor(np.concatenate([o, goal]))
+    df_input = ptu.FloatTensor(np.concatenate([o[:3], goal]))
     skill = df(df_input).mean
     agent.set_skill(ptu.get_numpy(skill))
 

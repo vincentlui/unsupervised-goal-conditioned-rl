@@ -57,7 +57,7 @@ def experiment(variant, args):
         batch_norm=variant['batch_norm'],
     )
     df = SkillDiscriminator(
-        input_size=obs_dim + ends_dim,
+        input_size=ends_dim + ends_dim,
         skill_dim=skill_dim,
         hidden_sizes=[M, M],
         output_activation=torch.tanh,
@@ -163,18 +163,18 @@ if __name__ == "__main__":
         layer_size=300,
         replay_buffer_size=int(1E6),
         exclude_obs_ind=None,
-        goal_ind=[0,1,2],
+        goal_ind=[3,4,5],
         target_obs_name='observation',
-        skill_horizon=20,
+        skill_horizon=40,
         batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=10000, #1000
-            num_eval_steps_per_epoch=200,
+            num_eval_steps_per_epoch=500,
             num_trains_per_train_loop=200,
             num_expl_steps_per_train_loop=1000,
             min_num_steps_before_training=0,
-            max_path_length=200,
-            eval_max_path_length=20,
+            max_path_length=1000,
+            eval_max_path_length=100,
             batch_size=256, #256
         )
         ,
