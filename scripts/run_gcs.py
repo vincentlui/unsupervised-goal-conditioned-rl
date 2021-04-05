@@ -20,11 +20,11 @@ def simulate_policy(args, goal):
     df = data['trainer/df']
     # env = NormalizedBoxEnv(Navigation2d())
     # env = NormalizedBoxEnv(AntEnv(expose_all_qpos=True))
-    # env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=True))
+    env = NormalizedBoxEnv(HalfCheetahEnv(expose_all_qpos=False))
     # env = NormalizedBoxEnv(gym.make('Swimmer-v2'))
     # env = NormalizedBoxEnv(gym.make('MountainCarContinuous-v0'))
     # env = GoalToNormalEnv(gym.make('FetchReach-v1'))
-    env = GoalToNormalEnv(FetchReachEnv())
+    # env = GoalToNormalEnv(FetchReachEnv())
     # env = GoalToNormalEnv(FetchPushEnv())
     path = GCSRollout(env, policy, df, goal, max_path_length=args.H, render=True)
     # write_vid(path)
@@ -41,9 +41,10 @@ def GCSRollout(env, agent, df, goal, skill_horizon=200, max_path_length=np.inf, 
 
     o_env = env.reset()
     o = o_env
-    o = o_env['observation']
-    print(o_env['desired_goal'])
-    goal = o_env['desired_goal']
+    if isinstance(o, dict):
+        o = o_env['observation']
+    if goal is None:
+        goal = o_env['desired_goal']
     # goal = np.subtract(goal, o[:3])
     next_o = None
     path_length = 0
@@ -71,7 +72,8 @@ def GCSRollout(env, agent, df, goal, skill_horizon=200, max_path_length=np.inf, 
         path_length += 1
         if max_path_length == np.inf and d:
             break
-        next_o = next_o['observation']
+        if isinstance(next_o, dict):
+            next_o = next_o['observation']
         o = next_o
         if render:
             # img = env.render('rgb_array')
@@ -137,5 +139,19 @@ if __name__ == "__main__":
     goal = [1.24,   0.63,   0.51]
 
     goal = [  3.,  -5.77272449e-01]
+    goal = [ 0.0751495,   1.68669402, -0.43760376,  0.35473499,  0.31535265, -0.5633655,
+  0.36094659,  0.11749101, -0.76349603, -0.11440622, -1.06889003,  0.1048231,
+  0.00885118, -0.06402687,  0.02119993,  0.16194614, -0.28845579] #hand stand
+    goal = [-1.95663086e-01,   7.77344923e-01,   3.53151056e-01,   3.18370160e-01,
+     - 4.17808986e-01,   5.23410650e-01,   7.03455320e-01, - 1.17584949e-01,
+     - 3.85285676e-02, - 9.29036306e-02, - 1.44006713e-01, - 1.41065108e-02,
+     - 8.22698521e-03, - 3.54164684e-05,   9.79748935e-02,   1.44558230e-01,
+     1.20285215e-01] #walk skill = torch.Tensor([-0.6572, -0.0751,  0.0608,  0.3885])
+    goal = [-0.17645307,  0.11726751, -0.07375919, -0.01813701, -0.43252403,  0.43017326,
+ -0.51015978, -0.27312506, -0.16814966,  0.35811097,  1.81120266,  1.74348963,
+ -7.1703177,   0.63339437,  1.77061832, -3.55309606,  2.80253121] # walk backward tensor([ 0.6500, -0.3000,  0.9103, -0.5400]
+    goal = [-0.6,  3.1, -0.3,  -0.9,  0.17, -0.35,
+ -0.2,  0.,  0., -0.,   0., -0.,
+ -0., -0., -0., -0., -0.] #flip
     #goal = [0.6,  0.02949391] #mountain car
     simulate_policy(args, goal)
