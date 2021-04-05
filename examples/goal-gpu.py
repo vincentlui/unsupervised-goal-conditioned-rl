@@ -165,7 +165,7 @@ if __name__ == "__main__":
         exclude_obs_ind=None,
         goal_ind=[3,4,5],
         target_obs_name='observation',
-        skill_horizon=40,
+        skill_horizon=100,
         batch_norm=False,
         algorithm_kwargs=dict(
             num_epochs=10000, #1000
