@@ -48,7 +48,7 @@ def simulate_policy2(args, filename='endobs.jpg'):
     #skills = torch.Tensor([[ 0.1080, -0.4160,  0.5176, -0.2920, -0.5953, -0.5421]])
     for skill in skills:
         skill = policy.stochastic_policy.skill_space.sample()
-        skill = torch.Tensor([ 0.10,  0.15, -0.82,  0.65]) #torch.Tensor([-0.2450, -0.0149, -0.8797,  0.5261]) tensor([ 0.0202,  0.0922, -0.8595,  0.6306])
+        # skill = torch.Tensor([ 0.10,  0.15, -0.82,  0.65]) #torch.Tensor([-0.2450, -0.0149, -0.8797,  0.5261]) tensor([ 0.0202,  0.0922, -0.8595,  0.6306])
         print(skill)
         policy.stochastic_policy.skill = skill
         path = DIAYNRollout(env, policy, max_path_length=args.H, render=True)
