@@ -160,21 +160,21 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="GCS",
         version="normal",
-        layer_size=200,
-        replay_buffer_size=int(1E5),
+        layer_size=300,
+        replay_buffer_size=int(1E6),
         exclude_obs_ind=None,
-        goal_ind=[0,1,2],
-        target_obs_name='observation',
-        skill_horizon=20,
+        goal_ind=None,#[0,1,2],
+        target_obs_name=None,#'observation',
+        skill_horizon=50,
         batch_norm=False,
         algorithm_kwargs=dict(
-            num_epochs=6000, #1000
-            num_eval_steps_per_epoch=200,
+            num_epochs=10000, #1000
+            num_eval_steps_per_epoch=0,
             num_trains_per_train_loop=200,
-            num_expl_steps_per_train_loop=600,
+            num_expl_steps_per_train_loop=1000,
             min_num_steps_before_training=0,
-            max_path_length=20,
-            eval_max_path_length=20,
+            max_path_length=1000,
+            eval_max_path_length=0,
             batch_size=128, #256
         )
         ,
