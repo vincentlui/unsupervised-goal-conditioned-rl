@@ -14,7 +14,7 @@ from rlkit.envs.fetch.push import FetchPushEnv
 import cv2
 
 
-def simulate_policy(args, goal):
+def simulate_policy(args, goal, filename='achieved.jpg'):
     data = torch.load(args.file, map_location='cpu')
     policy = data['evaluation/policy']
     df = data['trainer/df']
@@ -26,8 +26,12 @@ def simulate_policy(args, goal):
     # env = GoalToNormalEnv(gym.make('FetchReach-v1'))
     # env = GoalToNormalEnv(FetchReachEnv())
     # env = GoalToNormalEnv(FetchPushEnv())
-    path = GCSRollout(env, policy, df, goal, max_path_length=args.H, render=True)
+    path = GCSRollout2(env, policy, df, goal, max_path_length=args.H, render=True)
     # write_vid(path)
+    image = path['images'][-1][250:850, 630:1230]#[150:550, 730:1130]
+    print(image.shape)
+    # [400:800, 200:600]
+    cv2.imwrite(filename, image)
     env.close()
 
 def GCSRollout(env, agent, df, goal, skill_horizon=200, max_path_length=np.inf, render=False):
@@ -108,6 +112,87 @@ def GCSRollout(env, agent, df, goal, skill_horizon=200, max_path_length=np.inf, 
         images=images
     )
 
+def GCSRollout2(env, agent, df, goal, skill_horizon=200, max_path_length=np.inf, render=False):
+    observations = []
+    actions = []
+    rewards = []
+    terminals = []
+    agent_infos = []
+    env_infos = []
+    images = []
+
+    o_env = env.reset()
+    o = o_env
+    if isinstance(o, dict):
+        o = o_env['observation']
+    if goal is None:
+        goal = o_env['desired_goal']
+    # goal = np.subtract(goal, o[:3])
+    next_o = None
+    path_length = 0
+    if render:
+        # img = env.render('rgb_array')
+        img = env.render(mode= 'rgb_array',width=1900,height=860)
+#        env.viewer.cam.fixedcamid = 0
+#        env.viewer.cam.type = 2
+        images.append(img)
+
+    # df_input = torch.Tensor(np.concatenate([o, goal]))
+    df_input = torch.Tensor(o[None])
+    d_pred = df(df_input)
+    d_pred_log_softmax = torch.nn.functional.log_softmax(d_pred, 1)
+    _, pred_z = torch.max(d_pred_log_softmax, dim=1, keepdim=True)
+    print(pred_z)
+    agent.stochastic_policy.skill = pred_z.squeeze().detach().numpy()
+
+    while path_length < max_path_length:
+        a, agent_info = agent.get_action(o)
+        next_o, r, d, env_info = env.step(a)
+        observations.append(o)
+        rewards.append(r)
+        terminals.append(d)
+        actions.append(a)
+        agent_infos.append(agent_info)
+        env_infos.append(env_info)
+        path_length += 1
+        if max_path_length == np.inf and d:
+            break
+        if isinstance(next_o, dict):
+            next_o = next_o['observation']
+        o = next_o
+        if render:
+            # img = env.render('rgb_array')
+            img = env.render(mode= 'rgb_array',width=1900,height=860)
+            images.append(img)
+        if path_length % skill_horizon == 0:
+            df_input = torch.Tensor(np.concatenate([o, goal]))
+            skill = df(df_input).mean
+            agent.stochastic_policy.skill = skill.detach().numpy()
+
+    actions = np.array(actions)
+    if len(actions.shape) == 1:
+        actions = np.expand_dims(actions, 1)
+    observations = np.array(observations)
+    if len(observations.shape) == 1:
+        observations = np.expand_dims(observations, 1)
+        next_o = np.array([next_o])
+    next_observations = np.vstack(
+        (
+            observations[1:, :],
+            np.expand_dims(next_o, 0)
+        )
+    )
+    return dict(
+        observations=observations,
+        actions=actions,
+        rewards=np.array(rewards).reshape(-1, 1),
+        next_observations=next_observations,
+        terminals=np.array(terminals).reshape(-1, 1),
+        agent_infos=agent_infos,
+        env_infos=env_infos,
+        images=images
+    )
+
 def write_vid(path, filename='gcs.avi'):
     video = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30,
                             (1900, 860))
@@ -139,19 +224,29 @@ if __name__ == "__main__":
     goal = [1.24,   0.63,   0.51]
 
     goal = [  3.,  -5.77272449e-01]
-    goal = [ 0.0751495,   1.68669402, -0.43760376,  0.35473499,  0.31535265, -0.5633655,
-  0.36094659,  0.11749101, -0.76349603, -0.11440622, -1.06889003,  0.1048231,
-  0.00885118, -0.06402687,  0.02119993,  0.16194614, -0.28845579] #hand stand
-    goal = [-1.95663086e-01,   7.77344923e-01,   3.53151056e-01,   3.18370160e-01,
-     - 4.17808986e-01,   5.23410650e-01,   7.03455320e-01, - 1.17584949e-01,
-     - 3.85285676e-02, - 9.29036306e-02, - 1.44006713e-01, - 1.41065108e-02,
-     - 8.22698521e-03, - 3.54164684e-05,   9.79748935e-02,   1.44558230e-01,
-     1.20285215e-01] #walk skill = torch.Tensor([-0.6572, -0.0751,  0.0608,  0.3885])
-    goal = [-0.17645307,  0.11726751, -0.07375919, -0.01813701, -0.43252403,  0.43017326,
- -0.51015978, -0.27312506, -0.16814966,  0.35811097,  1.81120266,  1.74348963,
- -7.1703177,   0.63339437,  1.77061832, -3.55309606,  2.80253121] # walk backward tensor([ 0.6500, -0.3000,  0.9103, -0.5400]
-    goal = [-0.6,  3.1, -0.3,  -0.9,  0.17, -0.35,
- -0.2,  0.,  0., -0.,   0., -0.,
- -0., -0., -0., -0., -0.] #flip
+
+    goal = [  8.37394279e-02,   1.83033441e+00,  -5.24249608e-01,   4.26296879e-01,
+  -4.19837966e-01,  -5.34730371e-01,  -4.57303263e-01,   5.09928320e-01,
+  -2.70265454e-04,  -3.15888488e-06,  -3.21376419e-04,  -9.04722009e-06,
+   5.96453730e-06,   7.84579038e-07,   3.04543559e-04,   3.06825160e-04,
+   7.21252102e-05] #handstand
+
+    goal = [ -5.77292727e-01,   3.30235611e+00,   3.97563350e-01,  -4.74817654e-02,
+  -4.15206841e-01,  -2.40023158e-01,   6.77983316e-02,   1.71831904e-01,
+   2.28047796e-03,  -1.28652406e-04,   2.71806759e-04,   4.35098728e-02,
+   1.89267677e-01,  -1.42352542e-03,   1.81919403e-01,   2.01454011e-01,
+   1.27394950e-01] #flip
+
+  #   goal = [ -2.84508064e-01,   7.94366364e-01,   2.53811284e-01,  -2.68182510e-01,
+  # -3.09767525e-01 ,  4.20495568e-01 ,  6.77008654e-01  , 2.76152462e-01,
+  #  1.28293533e-06 , -1.82558913e-06 , -2.74220124e-06 ,  2.93166962e-05,
+  # -1.86504883e-05 , -9.93102586e-06 , -1.66690749e-06 ,  1.36124378e-05,
+  # -7.70153437e-06] #lean
+
+  #   goal = [ -2.58902415e-01 ,  9.70717820e-02 , -4.42095927e-01  , 4.74764951e-01,
+  # -4.19874266e-01 , -7.23166672e-01 ,  7.07282137e-03 , -3.50294717e-01,
+  #  5.85242066e-05 ,  1.55446561e-05 ,  1.06914095e-04  , 2.46169442e-04,
+  # -2.60413472e-04 ,  2.49826875e-05  , 3.97568677e-04 , -7.85007616e-04,
+  #  3.30781803e-04]
     #goal = [0.6,  0.02949391] #mountain car
     simulate_policy(args, goal)

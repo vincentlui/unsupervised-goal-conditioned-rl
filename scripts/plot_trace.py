@@ -29,7 +29,7 @@ def simulate_policy(args):
     plt.legend()
     plt.show()
 
-def simulate_policy2(args, filename='endobs.jpg'):
+def simulate_policy2(args, filename='goal.jpg'):
     data = torch.load(args.file, map_location='cpu')
     policy = data['evaluation/policy']
     envs = NormalizedBoxEnv(Navigation2d())
@@ -44,11 +44,11 @@ def simulate_policy2(args, filename='endobs.jpg'):
     # skills = torch.Tensor(np.vstack([0.5 * np.ones(10), np.arange(-0.9, 0.91, 0.2)])).transpose(1, 0)
     # skills = torch.Tensor(np.vstack([-0.3 * np.ones(6), -0.3 * np.ones(6), -0.3 * np.ones(6)])).transpose(1, 0)
     # skills = torch.Tensor(np.arange(-0.9, 0.99,0.1)).reshape(-1,1)
-    skills = 0.8*torch.ones([10, 12])
+    skills = 0.8*torch.ones([1, 12])
     #skills = torch.Tensor([[ 0.1080, -0.4160,  0.5176, -0.2920, -0.5953, -0.5421]])
     for skill in skills:
         skill = policy.stochastic_policy.skill_space.sample()
-        # skill = torch.Tensor([ 0.10,  0.15, -0.82,  0.65]) #torch.Tensor([-0.2450, -0.0149, -0.8797,  0.5261]) tensor([ 0.0202,  0.0922, -0.8595,  0.6306])
+        skill = torch.Tensor([-0.7344,  0.8364, -0.9505, -0.4721])
         print(skill)
         policy.stochastic_policy.skill = skill
         path = DIAYNRollout(env, policy, max_path_length=args.H, render=True)
@@ -57,8 +57,8 @@ def simulate_policy2(args, filename='endobs.jpg'):
         # print(action)
         print(obs[-1])
 
-    image = path['images'][-1]
-    # cv2.imwrite(filename, image)
+    image = path['images'][-1][250:850, 630:1230]
+    cv2.imwrite(filename, image)
 
 
 def simulate_policy3(args):
@@ -203,10 +203,8 @@ def DIAYNRollout(env, agent, max_path_length=np.inf, render=False):
     next_o = None
     path_length = 0
     if render:
-        img = env.render('rgb_array')
-        # img = env.render()
-#        env.viewer.cam.fixedcamid = 0
-#        env.viewer.cam.type = 2
+        # img = env.render('rgb_array')
+        img = env.render(mode='rgb_array', width=1900, height=860)
         images.append(img)
 
     while path_length < max_path_length:
@@ -225,8 +223,7 @@ def DIAYNRollout(env, agent, max_path_length=np.inf, render=False):
         # next_o=next_o['observation']
         o = next_o
         if render:
-            img = env.render('rgb_array')
-            # img = env.render()
+            img = env.render(mode='rgb_array', width=1900, height=860)
             images.append(img)
 
     actions = np.array(actions)

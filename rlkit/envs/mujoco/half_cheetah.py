@@ -92,4 +92,6 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     return self._get_obs()
 
   def viewer_setup(self):
-    self.viewer.cam.distance = self.model.stat.extent * 2
+    self.viewer.cam.distance = self.model.stat.extent * 1
+    self.viewer.cam.fixedcamid = 0
+    self.viewer.cam.type = 2
