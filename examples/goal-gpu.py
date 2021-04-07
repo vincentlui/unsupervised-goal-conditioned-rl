@@ -171,7 +171,7 @@ if __name__ == "__main__":
             num_epochs=6000, #1000
             num_eval_steps_per_epoch=500,
             num_trains_per_train_loop=200,
-            num_expl_steps_per_train_loop=600,
+            num_expl_steps_per_train_loop=1000,
             min_num_steps_before_training=0,
             max_path_length=50,
             eval_max_path_length=50,
