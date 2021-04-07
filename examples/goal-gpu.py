@@ -163,7 +163,7 @@ if __name__ == "__main__":
         layer_size=300,
         replay_buffer_size=int(1E6),
         exclude_obs_ind=None,
-        goal_ind=[3,4,5],
+        goal_ind=[0,1,2],
         target_obs_name='observation',
         skill_horizon=50,
         batch_norm=False,
