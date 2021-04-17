@@ -14,4 +14,4 @@ dist
 .ipynb_checkpoints/
 *.jpg
 *.png
-
+*.ipynb
